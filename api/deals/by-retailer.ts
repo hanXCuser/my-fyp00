@@ -1,19 +1,20 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../scraping/supabase-node';
 
 /**
  * GET /api/deals/by-retailer
  * Get all deals from a specific retailer
- * Query params: retailer (name), supermarket_id (optional)
+ * Query params: retailer_id, category (optional), limit (default: 100)
  */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const retailerName = searchParams.get('retailer');
-    const supermarketId = searchParams.get('supermarket_id');
+    const retailerId = searchParams.get('retailer_id');
+    const category = searchParams.get('category');
+    const limit = parseInt(searchParams.get('limit') || '100');
 
-    if (!retailerName) {
+    if (!retailerId) {
       return Response.json(
-        { error: 'Missing required parameter: retailer' },
+        { error: 'Missing required parameter: retailer_id' },
         { status: 400 }
       );
     }
@@ -22,55 +23,62 @@ export async function GET(request: Request) {
       .from('deals')
       .select(`
         deal_id,
-        discount_price,
-        discount_percentage,
+        title,
+        description,
+        deal_price,
+        discount,
         start_date,
         end_date,
-        is_active,
-        products (
+        product:products (
           product_id,
           name,
           brand,
           category,
-          image_url,
-          description
+          unit,
+          image_url
         ),
-        supermarkets (
+        supermarket:supermarkets (
           supermarket_id,
           branch_name,
-          address,
-          city,
-          location,
           latitude,
           longitude,
-          retailers (
-            retailer_id,
-            name,
-            website_url
-          )
+          address,
+          contact_no,
+          logo_url
+        ),
+        retailer:retailers (
+          retailer_id,
+          name,
+          website_url,
+          description
         )
       `)
-      .eq('supermarkets.retailers.name', retailerName)
-      .eq('is_active', true)
+      .eq('retailer_id', retailerId)
       .gte('end_date', new Date().toISOString().split('T')[0])
-      .order('discount_percentage', { ascending: false });
+      .order('deal_price', { ascending: true })
+      .limit(limit);
 
-    if (supermarketId) {
-      query = query.eq('supermarket_id', parseInt(supermarketId));
+    // Filter by category if provided
+    if (category) {
+      query = query.eq('product.category', category);
     }
 
-    const { data, error } = await query;
+    const { data: deals, error } = await query;
 
     if (error) {
       console.error('Database error:', error);
       return Response.json({ error: 'Failed to fetch deals' }, { status: 500 });
     }
 
+    // Get unique categories from results
+    const categories = [...new Set(deals?.map((deal: any) => deal.product?.category).filter(Boolean))];
+
     return Response.json({
       success: true,
-      retailer: retailerName,
-      deals: data,
-      count: data?.length || 0
+      deals: deals || [],
+      count: deals?.length || 0,
+      categories: categories,
+      retailer_id: retailerId
     });
 
   } catch (error: any) {

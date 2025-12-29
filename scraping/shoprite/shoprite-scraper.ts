@@ -207,16 +207,14 @@ export class ShopriteScraper {
 
           let pageProducts = 0;
 
-          let pageProducts = 0;
+          $(selectors.container).each((i, el) => {
+            try {
+              const $el = $(el);
 
-      $(selectors.container).each((i, el) => {
-        try {
-          const $el = $(el);
-
-          const name = this.utils.sanitizeText(
-            $el.find(selectors.name).first().text() ||
-            $el.find('h2, h3, h4').first().text()
-          );
+              const name = this.utils.sanitizeText(
+                $el.find(selectors.name).first().text() ||
+                $el.find('h2, h3, h4').first().text()
+              );
 
           if (!name) return;
 
