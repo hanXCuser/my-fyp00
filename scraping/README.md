@@ -4,7 +4,7 @@ Web scrapers for major supermarkets in Mauritius with Supabase database integrat
 
 ## Features
 
-- **Mauritius Retailers**: Carrefour, Winners, Shoprite
+- **Mauritius Retailers**: Lolo Hyper, Jumbo, Winners, Shoprite
 - **Database Integration**: Automatically saves to Supabase
 - **Deal Tracking**: Scrapes promotions and special offers
 - **Error Handling**: Robust retry logic and error reporting
@@ -13,7 +13,8 @@ Web scrapers for major supermarkets in Mauritius with Supabase database integrat
 ## Retailers
 
 Based on your database:
-- **Carrefour** - https://www.carrefour.mu
+- **Lolo Hyper** - https://lolohyper.mu
+- **Jumbo** - https://www.chez.mu/jumbo
 - **Winners** - https://www.winners.mu
 - **Shoprite** - https://www.shoprite.co.za
 - **Intermart** - (Website: NULL, needs to be added)
@@ -49,7 +50,7 @@ const scraper = new MauritiusScraper();
 const results = await scraper.scrapeDeals('all');
 
 // Scrape specific retailer
-const carrefourResults = await scraper.scrapeDeals('carrefour');
+const loloHyperResults = await scraper.scrapeDeals('lolohyper');
 
 // Get aggregated results
 const aggregated = MauritiusScraper.aggregateResults(results);
@@ -73,7 +74,7 @@ const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().sp
 The scrapers integrate with your Supabase database:
 
 ### Tables Used
-- **retailers**: Stores retailer information (Carrefour, Winners, etc.)
+- **retailers**: Stores retailer information (Lolo Hyper, Jumbo, Winners, etc.)
 - **products**: Stores product details (name, brand, category, etc.)
 - **supermarkets**: Stores individual supermarket locations
 - **deals**: Stores promotional deals with prices and dates
@@ -83,8 +84,8 @@ The scraper will:
 1. ✅ Create or find the retailer record
 2. ✅ Create product records (or reuse existing ones)
 3. ✅ Create deal records linking products to supermarkets
-4. ✅ Handle duplicates automatically Carrefour deals (supermarket_id = 1)
-const result = await scraper.scrapeAndSave('carrefour', 1, today, nextWeek);
+4. ✅ Handle duplicates automatically Lolo Hyper deals (supermarket_id = 1)
+const result = await scraper.scrapeAndSave('lolohyper', 1, today, nextWeek);
 
 console.log(`✅ Created ${result.productsCreated} products`);
 console.log(`✅ Created ${result.dealsCreated} deals`);
@@ -96,10 +97,10 @@ if (result.errors.length > 0) {
 ### Individual Scrapers
 
 ```typescript
-import { CarrefourScraper } from './scraping/carrefour-scraper';
+import { LoloHyperScraper } from './scraping/lolo-hyper/lolo-hyper-scraper';
 
-const carrefour = new CarrefourScraper();
-const result = await carrefour.scrapeDeals();
+const loloHyper = new LoloHyperScraper();
+const result = await loloHyper.scrapeDeals();
 ```
 
 ## Important Notes
@@ -216,7 +217,7 @@ async function dailyScrape() {
   const today = new Date().toISOString().split('T')[0];
   const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   
-  const retailers: ('carrefour' | 'winners' | 'shoprite')[] = ['carrefour', 'winners', 'shoprite'];
+  const retailers: ('lolohyper' | 'jumbo' | 'winners' | 'shoprite')[] = ['lolohyper', 'jumbo', 'winners', 'shoprite'];
   
   for (const retailer of retailers) {
     try {

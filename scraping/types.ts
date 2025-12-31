@@ -19,6 +19,7 @@ export interface Deal {
   title: string;
   description?: string;
   deal_price: number;
+  original_price?: number;
   discount?: number;
   start_date: string;
   end_date: string;
@@ -49,6 +50,7 @@ export interface ScraperConfig {
   headers?: Record<string, string>;
   timeout?: number;
   retryAttempts?: number;
+  insecureTLS?: boolean;
 }
 
 export interface ScrapedProduct {

@@ -1,15 +1,17 @@
-import { CarrefourScraper } from './carrefour/carrefour-scraper';
+import { JumboScraper } from './jumbo/jumbo-scraper';
+import { LoloHyperScraper } from './lolo-hyper/lolo-hyper-scraper';
 import { ShopriteScraper } from './shoprite/shoprite-scraper';
 import { SparScraper } from './spar/spar-scraper';
 import { SuperUScraper } from './super-u/super-u-scraper';
 import { ScraperResult } from './types';
 import { WinnersScraper } from './winners/winners-scraper';
 
-export type RetailerName = 'carrefour' | 'winners' | 'shoprite' | 'spar' | 'superu' | 'all';
+export type RetailerName = 'lolohyper' | 'jumbo' | 'winners' | 'shoprite' | 'spar' | 'superu' | 'all';
 
 export class MauritiusScraper {
   private scrapers = {
-    carrefour: new CarrefourScraper(),
+    lolohyper: new LoloHyperScraper(),
+    jumbo: new JumboScraper(),
     winners: new WinnersScraper(),
     shoprite: new ShopriteScraper(),
     spar: new SparScraper(),

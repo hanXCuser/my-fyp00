@@ -8,7 +8,8 @@ Automated web scraping system for Mauritius supermarkets with location-based dea
 scraping/
 ├── shoprite/            # Shoprite scraper & tests
 ├── winners/             # Winners scraper
-├── carrefour/           # Carrefour scraper
+├── lolo-hyper/          # Lolo Hyper scraper
+├── jumbo/               # Jumbo scraper
 ├── spar/                # Spar scraper
 ├── super-u/             # Super U scraper
 ├── database.ts          # Database service layer

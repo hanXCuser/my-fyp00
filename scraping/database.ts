@@ -183,6 +183,7 @@ export class DatabaseService {
           title: scraped.name,
           description: scraped.description,
           deal_price: scraped.price,
+          original_price: scraped.originalPrice,
           discount: scraped.discount,
           start_date: startDate,
           end_date: endDate,

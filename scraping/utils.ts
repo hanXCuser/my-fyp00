@@ -1,10 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
+import https from 'https';
 import { ScraperConfig } from './types';
 
 export class ScraperUtils {
   private axiosInstance: AxiosInstance;
 
   constructor(config: ScraperConfig) {
+    const allowInsecure = Boolean(config.insecureTLS) || Boolean(process.env.SCRAPER_INSECURE_TLS);
     this.axiosInstance = axios.create({
       baseURL: config.baseUrl,
       headers: {
@@ -12,6 +14,7 @@ export class ScraperUtils {
         ...config.headers,
       },
       timeout: config.timeout || 30000,
+      httpsAgent: allowInsecure ? new https.Agent({ rejectUnauthorized: false }) : undefined,
     });
   }
 

@@ -5,7 +5,7 @@ This guide shows you how to find and test CSS selectors for web scraping.
 ## Quick Start
 
 ### Step 1: Open DevTools
-1. Visit the website (e.g., https://www.carrefour.mu)
+1. Visit the website (e.g., https://lolohyper.mu or https://www.chez.mu/jumbo)
 2. Press `F12` or `Right-click → Inspect`
 3. Navigate to the **Console** tab
 
@@ -53,10 +53,10 @@ product.querySelector('.category')?.textContent
 
 ## Example: Complete Testing Session
 
-### Carrefour.mu Example
+### Lolo Hyper Example
 
 ```javascript
-// 1. Navigate to: https://www.carrefour.mu/promotions (or similar)
+// 1. Navigate to: https://lolohyper.mu/promotions (or similar)
 
 // 2. Find all products
 const products = document.querySelectorAll('.product-card');
@@ -121,8 +121,8 @@ console.log(data);
 
 ## Update Scrapers with Found Selectors
 
-### 1. Carrefour Scraper
-Edit `carrefour-scraper.ts` line ~78:
+### 1. Lolo Hyper Scraper
+Edit `lolo-hyper/lolo-hyper-scraper.ts` line ~78:
 
 ```typescript
 const productSelectors = {
@@ -133,8 +133,8 @@ const productSelectors = {
 };
 ```
 
-### 2. Winners Scraper
-Edit `winners-scraper.ts` line ~68:
+### 2. Jumbo Scraper
+Edit `jumbo/jumbo-scraper.ts` line ~68:
 
 ```typescript
 const selectors = {
@@ -144,8 +144,19 @@ const selectors = {
 };
 ```
 
-### 3. Shoprite Scraper
-Edit `shoprite-scraper.ts` line ~71:
+### 3. Winners Scraper
+Edit `winners/winners-scraper.ts` line ~68:
+
+```typescript
+const selectors = {
+  container: '.YOUR-CONTAINER-SELECTOR',
+  name: '.YOUR-NAME-SELECTOR',
+  price: '.YOUR-PRICE-SELECTOR',
+};
+```
+
+### 4. Shoprite Scraper
+Edit `shoprite/shoprite-scraper.ts` line ~71:
 
 ```typescript
 const selectors = {
@@ -224,9 +235,9 @@ console.log(`Total extracted: ${products.length} products`);
 Once you've updated the selectors, test the scraper:
 
 ```typescript
-import { CarrefourScraper } from './scraping/carrefour-scraper';
+import { LoloHyperScraper } from './scraping/lolo-hyper/lolo-hyper-scraper';
 
-const scraper = new CarrefourScraper();
+const scraper = new LoloHyperScraper();
 const result = await scraper.scrapeDeals();
 
 console.log(`Success: ${result.success}`);
