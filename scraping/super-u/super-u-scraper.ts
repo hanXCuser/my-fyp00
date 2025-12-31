@@ -121,13 +121,13 @@ export class SuperUScraper {
 
     if (!containers) {
       const pricePattern = /(Rs\.?|MUR|₨)?\s?\d+[\d.,\s]*\d/;
-      const potential: CheerioElement[] = [] as any;
+      const potential: any[] = [];
       $('*').each((i, el) => {
         const txt = $(el).text();
         if (txt && pricePattern.test(txt) && $(el).children().length < 8) potential.push(el);
       });
       if (potential.length > 0) {
-        containers = $(potential as any);
+        containers = $(potential);
         console.log(`Fallback heuristic matched ${potential.length} elements`);
       }
     }
@@ -167,92 +167,63 @@ export class SuperUScraper {
           
           if (!name || name.length < 2) return;
 
-          // Price
+          // Price - Super U uses .promo for current price
           let price = 0;
-          let priceElement: cheerio.Cheerio | null = null;
-          for (const ps of priceSelectors) {
-            const pe = $el.find(ps).first();
-            const pt = pe.text();
-            const p = pt ? this.utils.extractPrice(pt) : 0;
-            if (p && p > 0) {
-              price = p;
-              priceElement = pe;
-              break;
-            }
+          const promoElement = $el.find('.promo').first();
+          if (promoElement.length > 0) {
+            const promoText = promoElement.text().trim();
+            price = this.utils.extractPrice(promoText) || 0;
           }
+          
+          // Fallback to generic selectors
           if (price === 0) {
-            const mAll = $el.text().match(/(Rs\.?|MUR|₨)?\s?(\d+[\d.,]*\d)/g) || [];
-            for (const mm of mAll) {
-              const v = this.utils.extractPrice(mm);
-              if (v && v > price) price = v;
+            for (const ps of priceSelectors) {
+              const pe = $el.find(ps).first();
+              const pt = pe.text();
+              const p = pt ? this.utils.extractPrice(pt) : 0;
+              if (p && p > 0) {
+                price = p;
+                break;
+              }
             }
           }
+          
           if (price === 0) return;
 
-          // Original price detection (several heuristics)
+          // Original price - Super U uses <s> tag inside .price
           let originalPrice: number | undefined;
-
-          // 1) explicit selectors like .old-price, .prix-barre
-          for (const os of originalSelectors) {
-            const ot = $el.find(os).first().text();
-            if (ot) {
-              const v = this.utils.extractPrice(ot);
-              if (v && v > price) {
-                originalPrice = v;
-                break;
-              }
+          const priceSpan = $el.find('.price').first();
+          const strikethrough = priceSpan.find('s, del, strike').first();
+          if (strikethrough.length > 0) {
+            const strikeText = strikethrough.text().trim();
+            const originalVal = this.utils.extractPrice(strikeText);
+            if (originalVal && originalVal > price) {
+              originalPrice = originalVal;
             }
           }
-
-          // 2) <del>, <s>, <strike> tags
+          
+          // Fallback: look for any strikethrough in the container
           if (!originalPrice) {
-            const delText = $el.find('del, s, strike').first().text();
-            if (delText) {
-              const v = this.utils.extractPrice(delText);
-              if (v && v > price) originalPrice = v;
+            const anyStrike = $el.find('s, del, strike').first();
+            if (anyStrike.length > 0) {
+              const val = this.utils.extractPrice(anyStrike.text());
+              if (val && val > price) originalPrice = val;
             }
-          }
-
-          // 3) elements styled or classed as struck-through
-          if (!originalPrice) {
-            const strikeCandidates = $el.find('*').filter((i, el2) => {
-              const cls = ($(el2).attr('class') || '').toString();
-              const style = ($(el2).attr('style') || '').toString();
-              return /old|barre|strike|prix-barre|was-price|original/i.test(cls) || /line-?through/i.test(style);
-            });
-            for (let i2 = 0; i2 < strikeCandidates.length; i2++) {
-              const t = $(strikeCandidates[i2]).text();
-              const v = this.utils.extractPrice(t);
-              if (v && v > price) {
-                originalPrice = v;
-                break;
-              }
-            }
-          }
-
-          // 4) sibling price elements near the price element (next/prev)
-          if (!originalPrice && priceElement) {
-            const siblings = priceElement.nextAll().add(priceElement.prevAll());
-            siblings.each((i2, sEl) => {
-              if (originalPrice) return;
-              const t = $(sEl).text();
-              const v = this.utils.extractPrice(t);
-              if (v && v > price) originalPrice = v;
-            });
-          }
-
-          // 5) fallback: any number in container greater than price (choose smallest > price)
-          if (!originalPrice) {
-            const nums: number[] = [];
-            const allMatches = ($el.text().match(/(Rs\.?|MUR|₨)?\s?(\d+[\d.,]*\d)/g) || []);
-            for (const mm of allMatches) {
-              const v = this.utils.extractPrice(mm);
-              if (v && v > price) nums.push(v);
-            }
-            if (nums.length > 0) originalPrice = Math.min(...nums);
           }
 
           const discount = originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : undefined;
+
+          // Unit/Description - Super U uses .description
+          // Extract just the measurement (e.g., "500g", "1L") from French descriptions
+          let unit: string | undefined;
+          const description = $el.find('.description').first().text().trim();
+          if (description) {
+            // Match patterns like: 500g, 1kg, 1.5L, 2x330ml, 18x24 cm, x20, x6, etc.
+            const unitMatch = description.match(/(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|cl|cm|m|mm)|x\d+\s*(?:kg|g|l|ml|cm)?/i);
+            if (unitMatch) {
+              unit = unitMatch[0].trim().replace(',', '.');
+            }
+          }
 
           // Image
           let image_url: string | undefined;
@@ -265,10 +236,19 @@ export class SuperUScraper {
             }
           }
 
-          const brand = this.utils.sanitizeText($el.find('.brand, .marque').first().text()) || undefined;
-          const category = this.utils.sanitizeText($el.find('.category, .categorie').first().text()) || undefined;
+          // Brand - often at the end of the name after a dash or slash
+          let brand: string | undefined;
+          if (name.includes(' - ')) {
+            brand = name.split(' - ').pop()?.trim();
+          } else if (name.includes(' / ')) {
+            const parts = name.split(' / ');
+            if (parts.length > 1) brand = parts[parts.length - 1].trim();
+          }
+          
+          // Category - not available on Super U listing pages
+          const category: string | undefined = undefined;
 
-          products.push({ name, price, originalPrice, discount, image_url, brand, category, url: pageUrl });
+          products.push({ name, price, originalPrice, discount, image_url, brand, category, unit, url: pageUrl });
         } catch (err: any) {
           // Continue parsing others
         }
