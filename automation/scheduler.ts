@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { IntermartScraper } from '../scraping/intermarkt/intermarkt-scraper';
-import { monitorScraping, checkScraperHealth, getScraperStats } from './monitoring';
+import { checkScraperHealth, getScraperStats, monitorScraping } from './monitoring';
 // Import other scrapers as you add them
 // import { WinnersScraper } from '../scraping/winners/winners-scraper';
 // import { ShopriteScraper } from '../scraping/shoprite/shoprite-scraper';
@@ -170,4 +170,5 @@ if (require.main === module) {
   }
 }
 
-export { scheduleScrapers, runAllNow, runScraper };
+export { runAllNow, runScraper, scheduleScrapers };
+

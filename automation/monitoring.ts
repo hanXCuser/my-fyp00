@@ -182,11 +182,11 @@ export async function checkScraperHealth(scraperName: string, maxHoursSinceLastR
  * Monitor wrapper for scraping functions
  * Usage: const result = await monitorScraping('Intermarkt', async () => { ... });
  */
-export async function monitorScraping<T>(
+export async function monitorScraping(
   scraperName: string,
   supermarketId: number,
   scrapingFunction: () => Promise<{ productsCreated: number; dealsCreated: number }>
-): Promise<T> {
+): Promise<{ productsCreated: number; dealsCreated: number }> {
   const startTime = Date.now();
   const startDate = new Date();
   
@@ -207,7 +207,7 @@ export async function monitorScraping<T>(
       completed_at: endDate
     });
     
-    return result as T;
+    return result;
   } catch (error: any) {
     const endDate = new Date();
     const durationSeconds = Math.round((endDate.getTime() - startDate.getTime()) / 1000);
