@@ -7,6 +7,7 @@ const translate = require('translate-google-api');
 export class SuperUScraper {
   private utils: ScraperUtils;
   private db: DatabaseService;
+  private dbV2: DatabaseServiceV2;
   private readonly retailer = 'Super U';
   private readonly website = 'https://www.superu.mu';
 
@@ -21,6 +22,7 @@ export class SuperUScraper {
       insecureTLS: insecure,
     });
     this.db = new DatabaseService();
+    this.dbV2 = new DatabaseServiceV2();
   }
 
   async scrapeDeals(): Promise<ScraperResult> {
@@ -94,11 +96,33 @@ export class SuperUScraper {
 
     console.log(`✅ Scraped ${products.length} products from ${this.retailer} (across ${pageNum} pages)`);
 
+    // Deduplicate products by name and price
+    const uniqueProducts = this.deduplicateProducts(products);
+    console.log(`🔄 Deduplicated to ${uniqueProducts.length} unique products`);
+
     // Translate product names from French to English
     console.log('🌍 Translating product names to English...');
-    await this.translateProductNames(products);
+    await this.translateProductNames(uniqueProducts);
 
-    return { success: true, products, deals: [], errors: [], retailer: this.retailer, scrapedAt: new Date() };
+    return { success: true, products: uniqueProducts, deals: [], errors: [], retailer: this.retailer, scrapedAt: new Date() };
+  }
+
+  /**
+   * Deduplicate products by name and price
+   */
+  private deduplicateProducts(products: ScrapedProduct[]): ScrapedProduct[] {
+    const seen = new Map<string, ScrapedProduct>();
+    
+    for (const product of products) {
+      // Create a unique key based on name and price
+      const key = `${product.name.toLowerCase().trim()}_${product.price}`;
+      
+      if (!seen.has(key)) {
+        seen.set(key, product);
+      }
+    }
+    
+    return Array.from(seen.values());
   }
 
   private async scrapePage(html: string, pageUrl: string, products: ScrapedProduct[]): Promise<void> {

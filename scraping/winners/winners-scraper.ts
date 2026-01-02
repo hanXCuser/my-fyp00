@@ -1,9 +1,9 @@
 import * as cheerio from 'cheerio';
+import { BrochureOCRProcessor } from '../brochure-ocr';
 import { DatabaseService } from '../database';
+import { supabase } from '../supabase-node';
 import { ScrapedProduct, ScraperResult } from '../types';
 import { ScraperUtils } from '../utils';
-import { supabase } from '../supabase-node';
-import { BrochureOCRProcessor } from '../brochure-ocr';
 
 interface BrochureInfo {
   title: string;
@@ -422,7 +422,7 @@ export class WinnersScraper {
               retailer_id,
               supermarket_id,
               extractedProducts,
-              'brochure',
+              'web_scraping',
               startDate,
               endDate
             );

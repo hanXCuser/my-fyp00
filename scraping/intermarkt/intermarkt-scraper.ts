@@ -1,11 +1,11 @@
-import puppeteer from 'puppeteer';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import Tesseract from 'tesseract.js';
 import fs from 'fs';
 import path from 'path';
-import { Deal } from '../types';
+import puppeteer from 'puppeteer';
+import Tesseract from 'tesseract.js';
 import { DatabaseService } from '../database';
+import { ScrapedProduct } from '../types';
 
 export class IntermartScraper {
   private website = 'https://intermartmauritius.com/nos-activites/notre-offre/promotions-2/';
@@ -195,8 +195,8 @@ export class IntermartScraper {
   /**
    * Parse products from OCR text
    */
-  parseProducts(text: string, pageNumber: number): Deal[] {
-    const deals: Deal[] = [];
+  parseProducts(text: string, pageNumber: number): ScrapedProduct[] {
+    const products: ScrapedProduct[] = [];
     const lines = text.split('\n').filter(line => line.trim());
 
     for (let i = 0; i < lines.length; i++) {
@@ -235,23 +235,22 @@ export class IntermartScraper {
             continue;
           }
           
-          deals.push({
-            title: productName,
-            deal_price: price,
-            original_price: originalPrice,
+          products.push({
+            name: productName,
+            price: price,
+            originalPrice: originalPrice,
             discount: discount,
             unit: this.extractUnit(line),
             brand: this.extractBrand(line),
             category: this.extractCategory(productName),
-            image_url: null,
-            source: 'Intermarkt',
-            deal_description: line.substring(0, 200),
+            image_url: undefined,
+            description: line.substring(0, 200),
           });
         }
       }
     }
 
-    return deals;
+    return products;
   }
 
   /**
@@ -413,7 +412,7 @@ export class IntermartScraper {
   /**
    * Main scraping function
    */
-  async scrapeDeals(): Promise<Deal[]> {
+  async scrapeDeals(): Promise<ScrapedProduct[]> {
     console.log('\n🛒 Starting Intermarkt scraper...\n');
 
     try {
@@ -450,18 +449,18 @@ export class IntermartScraper {
 
       // Process each image with OCR
       console.log(`\n🔤 Performing OCR on ${images.length} image(s)...`);
-      const allDeals: Deal[] = [];
+      const allProducts: ScrapedProduct[] = [];
 
       for (let i = 0; i < images.length; i++) {
         console.log(`   Processing image ${i + 1}/${images.length}...`);
         const text = await this.performOCR(images[i]);
-        const deals = this.parseProducts(text, i + 1);
-        allDeals.push(...deals);
-        console.log(`   ✓ Extracted ${deals.length} products`);
+        const products = this.parseProducts(text, i + 1);
+        allProducts.push(...products);
+        console.log(`   ✓ Extracted ${products.length} products`);
       }
 
-      console.log(`\n✅ Total products extracted: ${allDeals.length}\n`);
-      return allDeals;
+      console.log(`\n✅ Total products extracted: ${allProducts.length}\n`);
+      return allProducts;
 
     } catch (error: any) {
       console.error(`\n❌ Scraping failed: ${error.message}\n`);
@@ -509,15 +508,15 @@ export class IntermartScraper {
       }
 
       // Process images
-      const allDeals: Deal[] = [];
+      const allProducts: ScrapedProduct[] = [];
       for (let i = 0; i < images.length; i++) {
         console.log(`   Processing image ${i + 1}/${images.length}...`);
         const text = await this.performOCR(images[i]);
-        const deals = this.parseProducts(text, i + 1);
-        allDeals.push(...deals);
+        const products = this.parseProducts(text, i + 1);
+        allProducts.push(...products);
       }
 
-      console.log(`✅ Extracted ${allDeals.length} products`);
+      console.log(`✅ Extracted ${allProducts.length} products`);
 
       // Save to database
       console.log('💾 Saving to database...');
@@ -529,23 +528,10 @@ export class IntermartScraper {
         'Intermarkt Mauritius - Your neighborhood supermarket offering quality products at competitive prices'
       );
 
-      // Convert deals to ScrapedProduct format
-      const scrapedProducts = allDeals.map(deal => ({
-        name: deal.title,
-        brand: deal.brand,
-        category: deal.category,
-        unit: deal.unit,
-        price: deal.deal_price,
-        originalPrice: deal.original_price,
-        discount: deal.discount,
-        image_url: deal.image_url,
-        description: deal.description,
-      }));
-
       const { productsCreated, dealsCreated } = await this.db.saveScrapedData(
         retailer_id,
         supermarket_id,
-        scrapedProducts,
+        allProducts,
         'web_scraping',
         startDate.toISOString().split('T')[0],
         endDate.toISOString().split('T')[0]
