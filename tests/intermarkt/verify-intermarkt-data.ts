@@ -22,12 +22,12 @@ async function verifyIntermartData() {
   // Get total counts
   const { count: totalDeals } = await supabase
     .from('deals')
-    .select('*', { count: 'only', head: true })
+    .select('*', { count: 'exact', head: true })
     .eq('retailer_id', retailer.retailer_id);
 
   const { count: totalProducts } = await supabase
     .from('products')
-    .select('product_id, deals!inner(retailer_id)', { count: 'only', head: true })
+    .select('product_id, deals!inner(retailer_id)', { count: 'exact', head: true })
     .eq('deals.retailer_id', retailer.retailer_id);
 
   console.log('📊 Summary Statistics:');
@@ -87,12 +87,13 @@ async function verifyIntermartData() {
         console.log(`   Discount: ${deal.discount ? deal.discount + '%' : 'N/A'} (Calculated: ${actualDiscount}%)`);
       }
       
-      if (deal.products) {
+      if (deal.products && !Array.isArray(deal.products)) {
+        const product = deal.products as { name: any; brand: any; category: any; unit: any };
         console.log(`   Product Info:`);
-        console.log(`     - Name: ${deal.products.name}`);
-        console.log(`     - Brand: ${deal.products.brand || 'N/A'}`);
-        console.log(`     - Category: ${deal.products.category || 'N/A'}`);
-        console.log(`     - Unit: ${deal.products.unit || 'N/A'}`);
+        console.log(`     - Name: ${product.name}`);
+        console.log(`     - Brand: ${product.brand || 'N/A'}`);
+        console.log(`     - Category: ${product.category || 'N/A'}`);
+        console.log(`     - Unit: ${product.unit || 'N/A'}`);
       }
       
       console.log(`   Valid: ${deal.start_date} to ${deal.end_date}\n`);
