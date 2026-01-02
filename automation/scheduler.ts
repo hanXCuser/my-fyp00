@@ -1,9 +1,9 @@
 import cron from 'node-cron';
 import { IntermartScraper } from '../scraping/intermarkt/intermarkt-scraper';
+import { ShopriteScraper } from '../scraping/shoprite/shoprite-scraper';
+import { SuperUScraper } from '../scraping/super-u/super-u-scraper';
+import { WinnersScraper } from '../scraping/winners/winners-scraper';
 import { checkScraperHealth, getScraperStats, monitorScraping } from './monitoring';
-// Import other scrapers as you add them
-// import { WinnersScraper } from '../scraping/winners/winners-scraper';
-// import { ShopriteScraper } from '../scraping/shoprite/shoprite-scraper';
 
 interface ScraperConfig {
   name: string;
@@ -22,14 +22,27 @@ const scraperConfigs: ScraperConfig[] = [
     schedule: '0 2 * * *', // Daily at 2 AM
     enabled: true
   },
-  // Add more retailers here
-  // {
-  //   name: 'Winners',
-  //   supermarketId: 4,
-  //   scraper: WinnersScraper,
-  //   schedule: '0 3 * * *', // Daily at 3 AM
-  //   enabled: true
-  // },
+  {
+    name: 'Winners',
+    supermarketId: 4,
+    scraper: WinnersScraper,
+    schedule: '0 3 * * *', // Daily at 3 AM
+    enabled: true
+  },
+  {
+    name: 'Shoprite',
+    supermarketId: 13,
+    scraper: ShopriteScraper,
+    schedule: '0 4 * * *', // Daily at 4 AM
+    enabled: true
+  },
+  {
+    name: 'Super-U',
+    supermarketId: 8,
+    scraper: SuperUScraper,
+    schedule: '0 5 * * *', // Daily at 5 AM
+    enabled: true
+  },
 ];
 
 // Logging utility
