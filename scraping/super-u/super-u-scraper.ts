@@ -7,7 +7,6 @@ const translate = require('translate-google-api');
 export class SuperUScraper {
   private utils: ScraperUtils;
   private db: DatabaseService;
-  private dbV2: DatabaseServiceV2;
   private readonly retailer = 'Super U';
   private readonly website = 'https://www.superu.mu';
 
@@ -22,7 +21,6 @@ export class SuperUScraper {
       insecureTLS: insecure,
     });
     this.db = new DatabaseService();
-    this.dbV2 = new DatabaseServiceV2();
   }
 
   async scrapeDeals(): Promise<ScraperResult> {
