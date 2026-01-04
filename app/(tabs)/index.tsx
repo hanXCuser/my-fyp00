@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -13,37 +12,169 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 
 import { supabase } from '@/lib/supabase';
 import { useList } from '@/contexts/ListContext';
 import { useFavourites } from '@/contexts/FavouritesContext';
 
 type Deal = {
-  deal_id: string;
-  product_id: string;
-  supermarket_id: string;
-  retailer_id: string;
-  pamphlet_id: string;
+  deal_id: number;
+  product_id: number;
+  supermarket_id?: number;
+  retailer_id: number;
+  pamphlet_id?: number;
   title: string;
-  description: string;
+  description?: string;
   deal_price: number;
-  discount: number;
+  original_price?: number;
+  discount?: number;
   start_date: string;
   end_date: string;
   source: string;
-  created_at: string;
+  created_at?: string;
+};
+
+type Supermarket = {
+  supermarket_id: number;
+  name: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 type Product = {
-  product_id: string;
+  product_id: number;
   name: string;
   brand?: string;
   category?: string;
   unit?: string;
-  image?: string;
+  image_url?: string;
   description?: string;
+  base_price?: number; // Regular base price
   deal?: Deal | null; // Active deal for this product
+  retailer?: { retailer_id: number; name: string } | null;
+  supermarket?: Supermarket | null; // Supermarket location for map
 };
+
+// Product card component to handle image loading
+function ProductCard({ 
+  item, 
+  onPress, 
+  onAddToList, 
+  onToggleFavourite,
+  isInList,
+  isFavourite 
+}: {
+  item: Product;
+  onPress: () => void;
+  onAddToList: () => void;
+  onToggleFavourite: () => void;
+  isInList: boolean;
+  isFavourite: boolean;
+}) {
+  const [imageError, setImageError] = useState(false);
+  const hasDeal = Boolean(item.deal);
+
+  // Simple placeholder with product initial
+  const getPlaceholder = () => {
+    const initial = item.name.charAt(0).toUpperCase();
+    return `https://ui-avatars.com/api/?name=${initial}&size=400&background=e5e7eb&color=6b7280&bold=true`;
+  };
+  
+  const placeholderUri = getPlaceholder();
+  
+  // Check if we have a valid URL
+  const hasValidUrl = item.image_url && item.image_url.trim().length > 0;
+  
+  return (
+    <Pressable style={styles.card} onPress={onPress}>
+      {!hasValidUrl || imageError ? (
+        <View style={[styles.cardImage, styles.placeholderContainer]}>
+          <Text style={styles.placeholderText}>{item.name.substring(0, 2).toUpperCase()}</Text>
+        </View>
+      ) : (
+        <Image 
+          source={{ uri: item.image_url }}
+          style={styles.cardImage} 
+          contentFit="cover"
+          transition={200}
+          cachePolicy="none"
+          onError={(error) => {
+            console.log(`❌ Image failed: ${item.name}`);
+            setImageError(true);
+          }}
+        />
+      )}
+      <View style={styles.cardContent}>
+        {item.retailer && item.retailer.name && (
+          <View style={styles.retailerBadge}>
+            <Text style={styles.retailerBadgeText} numberOfLines={1} ellipsizeMode="tail">
+              {item.retailer.name}
+            </Text>
+          </View>
+        )}
+        {item.supermarket && (
+          <View style={styles.locationBadge}>
+            <Ionicons name="location-outline" size={12} color="#059669" />
+            <Text style={styles.locationBadgeText}>
+              {item.supermarket.location || item.supermarket.name}
+            </Text>
+          </View>
+        )}
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
+          {item.brand && (
+            <Text style={styles.brandText}>{item.brand}</Text>
+          )}
+        </View>
+        {hasDeal ? (
+          <View style={styles.priceContainer}>
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>Rs {item.deal!.deal_price.toFixed(2)}</Text>
+              {item.deal!.discount && item.deal!.discount > 0 && (
+                <View style={styles.discountBadge}>
+                  <Text style={styles.discount}>-{item.deal!.discount}%</Text>
+                </View>
+              )}
+            </View>
+            {item.deal!.original_price && item.deal!.original_price > item.deal!.deal_price && (
+              <Text style={styles.originalPrice}>Rs {item.deal!.original_price.toFixed(2)}</Text>
+            )}
+          </View>
+        ) : item.base_price ? (
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>Rs {item.base_price.toFixed(2)}</Text>
+          </View>
+        ) : (
+          <Text style={styles.noDealText}>Price unavailable</Text>
+        )}
+        <View style={styles.cardActions}>
+          <Pressable
+            style={[styles.actionButton, isInList && styles.actionButtonActive]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onAddToList();
+            }}>
+            <Text style={[styles.actionButtonText, isInList && styles.actionButtonTextActive]}>
+              {isInList ? 'Added' : 'Add to list'}
+            </Text>
+          </Pressable>
+          <Pressable onPress={(e) => {
+            e.stopPropagation();
+            onToggleFavourite();
+          }} hitSlop={10}>
+            <Ionicons
+              name={isFavourite ? 'heart' : 'heart-outline'}
+              size={20}
+              color={isFavourite ? '#ff3366' : '#222'}
+            />
+          </Pressable>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
 
 export default function HomeScreen() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -52,74 +183,13 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [dealFilter, setDealFilter] = useState<'all' | 'deals'>('all');
   const { addToList, removeFromList, isInList } = useList();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
-    // Mock data for testing UI
-    const mockProducts: Product[] = [
-      {
-        product_id: '1',
-        name: 'Winter Jacket',
-        brand: 'North Face',
-        category: 'Clothing',
-        unit: 'piece',
-        image: 'https://picsum.photos/seed/jacket/400',
-        description: 'Warm winter jacket perfect for cold weather',
-        deal: {
-          deal_id: 'd1',
-          product_id: '1',
-          supermarket_id: 's1',
-          retailer_id: 'r1',
-          pamphlet_id: 'p1',
-          title: 'Winter Sale',
-          description: '15% off all winter clothing',
-          deal_price: 102,
-          discount: 15,
-          start_date: '2025-12-01',
-          end_date: '2025-12-31',
-          source: 'Store Flyer',
-          created_at: '2025-12-01',
-        },
-      },
-      {
-        product_id: '2',
-        name: 'Running Shoes',
-        brand: 'Nike',
-        category: 'Footwear',
-        unit: 'pair',
-        image: 'https://picsum.photos/seed/shoes/400',
-        description: 'Comfortable running shoes for daily exercise',
-        deal: null,
-      },
-      {
-        product_id: '3',
-        name: 'Leather Backpack',
-        brand: 'Samsonite',
-        category: 'Accessories',
-        unit: 'piece',
-        image: 'https://picsum.photos/seed/backpack/400',
-        description: 'Durable leather backpack with multiple compartments',
-        deal: {
-          deal_id: 'd2',
-          product_id: '3',
-          supermarket_id: 's1',
-          retailer_id: 'r1',
-          pamphlet_id: 'p1',
-          title: 'Back to School',
-          description: '20% off all bags',
-          deal_price: 76,
-          discount: 20,
-          start_date: '2025-12-01',
-          end_date: '2025-12-31',
-          source: 'Online Ad',
-          created_at: '2025-12-01',
-        },
-      },
-    ];
 
     try {
       // Fetch products with their active deals (where end_date >= today)
@@ -133,32 +203,154 @@ export default function HomeScreen() {
           brand,
           category,
           unit,
-          image,
-          description
+          image_url,
+          description,
+          base_price
         `);
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('Error fetching products:', fetchError);
+        throw fetchError;
+      }
 
       if (productsData && productsData.length > 0) {
-        // Fetch all active deals
-        const { data: dealsData } = await supabase
+        console.log(`✓ Fetched ${productsData.length} products from database`);
+        
+        // Log first 3 products with image info
+        console.log('First 3 products:');
+        productsData.slice(0, 3).forEach((p, i) => {
+          console.log(`  ${i + 1}. ${p.name}`);
+          console.log(`     Image: ${p.image_url ? 'Has URL' : 'NO URL'}`);
+          if (p.image_url) {
+            console.log(`     URL: ${p.image_url.substring(0, 60)}...`);
+          }
+        });
+        
+        // Fetch all active deals with retailer and supermarket location info
+        const { data: dealsData, error: dealsError } = await supabase
           .from('deals')
-          .select('*')
+          .select(`
+            *,
+            retailers!inner (
+              retailer_id,
+              name
+            )
+          `)
           .gte('end_date', today);
+        
+        // Fetch ALL deal-supermarket links (including expired deals) to get location data for all products
+        const { data: allDealLocationsData } = await supabase
+          .from('deal_supermarket')
+          .select(`
+            deal_id,
+            supermarkets!inner (
+              supermarket_id,
+              name,
+              location,
+              latitude,
+              longitude
+            )
+          `);
+        
+        // Create a map of product_id to supermarket for quick lookup
+        const productSupermarketMap = new Map();
+        
+        // First pass: get all deals (active and expired) to map products to supermarkets
+        const { data: allDealsData } = await supabase
+          .from('deals')
+          .select(`
+            deal_id, 
+            product_id, 
+            retailer_id,
+            retailers!inner (
+              retailer_id,
+              name
+            )
+          `);
+        
+        if (allDealsData && allDealLocationsData) {
+          allDealsData.forEach((deal: any) => {
+            if (!productSupermarketMap.has(deal.product_id)) {
+              const dealLocation = allDealLocationsData.find((dl: any) => dl.deal_id === deal.deal_id);
+              if (dealLocation) {
+                productSupermarketMap.set(deal.product_id, (dealLocation as any).supermarkets);
+              }
+            }
+          });
+        }
+        
+        // Create a map of product_id to retailer
+        const productRetailerMap = new Map();
+        if (allDealsData) {
+          allDealsData.forEach((deal: any) => {
+            if (!productRetailerMap.has(deal.product_id) && deal.retailers) {
+              productRetailerMap.set(deal.product_id, deal.retailers);
+            }
+          });
+        }
+        
+        // Fetch all supermarkets for products without deals
+        const { data: allSupermarkets } = await supabase
+          .from('supermarkets')
+          .select('supermarket_id, retailer_id, name, location, latitude, longitude');
+        
+        // Create a map of retailer_id to supermarkets
+        const retailerSupermarketMap = new Map();
+        if (allSupermarkets) {
+          allSupermarkets.forEach((sm: any) => {
+            if (!retailerSupermarketMap.has(sm.retailer_id)) {
+              retailerSupermarketMap.set(sm.retailer_id, sm);
+            }
+          });
+        }
 
-        // Map products with their deals
+        if (dealsError) {
+          console.error('Error fetching deals:', dealsError);
+        } else {
+          console.log(`✓ Fetched ${dealsData?.length || 0} active deals`);
+        }
+
+        // Map products with their deals, retailer, and supermarket info
         const productsWithDeals = productsData.map((product) => {
           const deal = dealsData?.find((d) => d.product_id === product.product_id);
-          return { ...product, deal: deal || null };
+          
+          // Get retailer from any deal (active or expired)
+          const retailer = deal ? (deal as any).retailers : (productRetailerMap.get(product.product_id) || null);
+          
+          // Get supermarket from map (works for all products that have been in deals)
+          let supermarket = productSupermarketMap.get(product.product_id) || null;
+          
+          // If no supermarket from deals, try to get one from retailer
+          if (!supermarket) {
+            // Try to find retailer from any deal (active or expired)
+            const anyDeal = allDealsData?.find((d: any) => d.product_id === product.product_id);
+            if (anyDeal && anyDeal.retailer_id) {
+              supermarket = retailerSupermarketMap.get(anyDeal.retailer_id) || null;
+            }
+            // If still no supermarket, assign first available supermarket
+            if (!supermarket && allSupermarkets && allSupermarkets.length > 0) {
+              supermarket = allSupermarkets[0];
+            }
+          }
+          
+          return { 
+            ...product, 
+            deal: deal || null,
+            retailer: retailer,
+            supermarket: supermarket
+          };
         });
 
         setProducts(productsWithDeals);
+        setError(null);
       } else {
-        setProducts(mockProducts);
+        console.warn('No products found in database');
+        setProducts([]);
       }
     } catch (fetchErr) {
-      console.error(fetchErr);
-      setProducts(mockProducts);
+      console.error('Failed to fetch products:', fetchErr);
+      setError('Failed to load products. Please try again.');
+      setProducts([]);
     } finally {
       setIsLoading(false);
     }
@@ -175,13 +367,24 @@ export default function HomeScreen() {
   }, [fetchProducts]);
 
   const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return products;
+    let filtered = products;
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((product) => 
+        product.name.toLowerCase().includes(lowerQuery) ||
+        product.brand?.toLowerCase().includes(lowerQuery)
+      );
     }
 
-    const lowerQuery = searchQuery.trim().toLowerCase();
-    return products.filter((product) => product.name.toLowerCase().includes(lowerQuery));
-  }, [products, searchQuery]);
+    // Filter by deal status
+    if (dealFilter === 'deals') {
+      filtered = filtered.filter((product) => product.deal !== null);
+    }
+
+    return filtered;
+  }, [products, searchQuery, dealFilter]);
 
   const toggleFavourite = useCallback((product: Product) => {
     if (isFavourite(product.product_id)) {
@@ -196,58 +399,21 @@ export default function HomeScreen() {
   }, []);
 
   const renderProduct = ({ item }: { item: Product }) => {
-    const hasDeal = Boolean(item.deal);
-    const displayPrice = hasDeal ? item.deal!.deal_price : 0;
-    const isProductFavourite = isFavourite(item.product_id);
-    const itemInList = isInList(item.product_id);
-
     return (
-      <Pressable style={styles.card} onPress={() => handleProductPress(item)}>
-        <Image source={{ uri: item.image || 'https://via.placeholder.com/400' }} style={styles.cardImage} resizeMode="cover" />
-        <View style={styles.cardContent}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{item.name}</Text>
-            {item.brand && (
-              <Text style={styles.brandText}>{item.brand}</Text>
-            )}
-          </View>
-          {hasDeal && (
-            <View style={styles.priceRow}>
-              <Text style={styles.price}>${displayPrice.toFixed(2)}</Text>
-              <Text style={styles.discount}>-{item.deal!.discount}%</Text>
-            </View>
-          )}
-          {!hasDeal && (
-            <Text style={styles.noDealText}>No deals available</Text>
-          )}
-          <View style={styles.cardActions}>
-            <Pressable
-              style={[styles.actionButton, itemInList && styles.actionButtonActive]}
-              onPress={(e) => {
-                e.stopPropagation();
-                if (itemInList) {
-                  removeFromList(item.product_id);
-                } else {
-                  addToList(item);
-                }
-              }}>
-              <Text style={[styles.actionButtonText, itemInList && styles.actionButtonTextActive]}>
-                {itemInList ? 'Added' : 'Add to list'}
-              </Text>
-            </Pressable>
-            <Pressable onPress={(e) => {
-              e.stopPropagation();
-              toggleFavourite(item);
-            }} hitSlop={10}>
-              <Ionicons
-                name={isProductFavourite ? 'heart' : 'heart-outline'}
-                size={20}
-                color={isProductFavourite ? '#ff3366' : '#222'}
-              />
-            </Pressable>
-          </View>
-        </View>
-      </Pressable>
+      <ProductCard
+        item={item}
+        onPress={() => handleProductPress(item)}
+        onAddToList={() => {
+          if (isInList(item.product_id)) {
+            removeFromList(item.product_id);
+          } else {
+            addToList(item);
+          }
+        }}
+        onToggleFavourite={() => toggleFavourite(item)}
+        isInList={isInList(item.product_id)}
+        isFavourite={isFavourite(item.product_id)}
+      />
     );
   };
 
@@ -296,6 +462,24 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
+      {/* Filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChipsContainer}>
+        <Pressable 
+          style={[styles.filterChip, dealFilter === 'all' && styles.filterChipActive]}
+          onPress={() => setDealFilter('all')}>
+          <Text style={[styles.filterChipText, dealFilter === 'all' && styles.filterChipTextActive]}>
+            All
+          </Text>
+        </Pressable>
+        <Pressable 
+          style={[styles.filterChip, dealFilter === 'deals' && styles.filterChipActive]}
+          onPress={() => setDealFilter('deals')}>
+          <Text style={[styles.filterChipText, dealFilter === 'deals' && styles.filterChipTextActive]}>
+            With Deals
+          </Text>
+        </Pressable>
+      </ScrollView>
+
       {isLoading ? (
         <View style={styles.loaderWrapper}>
           <ActivityIndicator size="large" color="#222" />
@@ -305,7 +489,7 @@ export default function HomeScreen() {
           <FlatList
             key="grid-2-columns"
             data={sortedProducts}
-            keyExtractor={(item) => item.product_id}
+            keyExtractor={(item) => item.product_id.toString()}
             renderItem={renderProduct}
             numColumns={2}
             columnWrapperStyle={styles.row}
@@ -372,9 +556,15 @@ export default function HomeScreen() {
               </Pressable>
               
               <Image
-                source={{ uri: selectedProduct.image || 'https://via.placeholder.com/400' }}
+                source={selectedProduct.image_url || 'https://via.placeholder.com/600x600/EEEEEE/999999?text=No+Image'}
                 style={styles.detailImage}
-                resizeMode="cover"
+                contentFit="contain"
+                transition={300}
+                placeholder="https://via.placeholder.com/600x600/EEEEEE/999999?text=Loading"
+                cachePolicy="memory-disk"
+                priority="high"
+                recyclingKey={selectedProduct.product_id.toString()}
+                onError={(error) => console.log('Detail image error:', error)}
               />
               
               <View style={styles.detailContent}>
@@ -510,8 +700,20 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    height: 140,
-    backgroundColor: '#e9eef5',
+    height: 180,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  placeholderContainer: {
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#9ca3af',
   },
   cardContent: {
     padding: 12,
@@ -634,8 +836,9 @@ const styles = StyleSheet.create({
   },
   detailImage: {
     width: '100%',
-    height: 400,
+    height: 450,
     backgroundColor: '#e9eef5',
+    borderRadius: 12,
   },
   detailContent: {
     padding: 24,
@@ -831,5 +1034,75 @@ const styles = StyleSheet.create({
   },
   filterOptionTextActive: {
     color: '#fff',
+  },
+  // Retailer badge
+  retailerBadge: {
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 10,
+    width: '40%',
+  },
+  retailerBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#4b5563',
+  },
+  // Location badge
+  locationBadge: {
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  // Filter chips
+  filterChipsContainer: {
+    marginBottom: 16,
+  },
+  filterChip: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e2e6ec',
+  },
+  filterChipActive: {
+    backgroundColor: '#111',
+    borderColor: '#111',
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  filterChipTextActive: {
+    color: '#fff',
+  },
+  // Price display
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+  discountBadge: {
+    backgroundColor: '#fee',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 6,
   },
 });

@@ -1,28 +1,29 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 type Deal = {
-  deal_id: string;
-  product_id: string;
-  supermarket_id: string;
-  retailer_id: string;
-  pamphlet_id: string;
+  deal_id: number;
+  product_id: number;
+  supermarket_id?: number;
+  retailer_id: number;
+  pamphlet_id?: number;
   title: string;
-  description: string;
+  description?: string;
   deal_price: number;
-  discount: number;
+  original_price?: number;
+  discount?: number;
   start_date: string;
   end_date: string;
   source: string;
-  created_at: string;
+  created_at?: string;
 };
 
 type Product = {
-  product_id: string;
+  product_id: number;
   name: string;
   brand?: string;
   category?: string;
   unit?: string;
-  image?: string;
+  image_url?: string;
   description?: string;
   deal?: Deal | null;
 };
@@ -30,8 +31,8 @@ type Product = {
 type FavouritesContextType = {
   favouriteItems: Product[];
   addToFavourites: (product: Product) => void;
-  removeFromFavourites: (productId: string) => void;
-  isFavourite: (productId: string) => boolean;
+  removeFromFavourites: (productId: number) => void;
+  isFavourite: (productId: number) => boolean;
 };
 
 const FavouritesContext = createContext<FavouritesContextType | undefined>(undefined);
@@ -48,11 +49,11 @@ export function FavouritesProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeFromFavourites = (productId: string) => {
+  const removeFromFavourites = (productId: number) => {
     setFavouriteItems((prev) => prev.filter((p) => p.product_id !== productId));
   };
 
-  const isFavourite = (productId: string) => {
+  const isFavourite = (productId: number) => {
     return favouriteItems.some((p) => p.product_id === productId);
   };
 
