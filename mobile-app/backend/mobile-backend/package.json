@@ -1,0 +1,27 @@
+{
+  "name": "pricefind-mobile-backend",
+  "version": "1.0.0",
+  "description": "Backend APIs for PriceFind mobile application",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "tsc",
+    "deploy": "vercel --prod",
+    "scrape:all": "cd scraping && npm run scrape:all",
+    "scrape:intermarkt": "cd scraping && npm run scrape:intermarkt",
+    "scrape:superu": "cd scraping && npm run scrape:superu",
+    "scrape:winners": "cd scraping && npm run scrape:winners",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["mobile", "api", "deals", "recommendations"],
+  "author": "PriceFind",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@vercel/node": "^3.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}

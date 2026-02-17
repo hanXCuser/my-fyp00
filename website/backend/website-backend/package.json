@@ -1,0 +1,27 @@
+{
+  "name": "pricefind-website-backend",
+  "version": "1.0.0",
+  "description": "Backend APIs and ML services for PriceFind website",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "tsc",
+    "deploy": "vercel --prod",
+    "train": "cd forecasting && python train_models.py",
+    "test:models": "cd forecasting && python test_forecasting.py",
+    "forecast:demand": "cd forecasting/api && python demand.py",
+    "forecast:price": "cd forecasting/api && python price.py"
+  },
+  "keywords": ["website", "forecasting", "analytics", "ml"],
+  "author": "PriceFind",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@vercel/node": "^3.0.12",
+    "flask": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}

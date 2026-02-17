@@ -1,0 +1,30 @@
+{
+  "name": "pricefind-shared",
+  "version": "1.0.0",
+  "description": "Shared utilities and scraping tools for PriceFind",
+  "main": "index.js",
+  "scripts": {
+    "scrape:all": "ts-node scraping/run-all-scrapers.ts",
+    "scrape:intermarkt": "ts-node scraping/intermarkt/index.ts",
+    "scrape:superu": "ts-node scraping/super-u/index.ts",
+    "scrape:winners": "ts-node scraping/winners/index.ts",
+    "archive-rescrape": "ts-node scraping/archive-and-rescrape.ts",
+    "dev": "ts-node scraping/index.ts"
+  },
+  "keywords": ["scraping", "shared", "utilities"],
+  "author": "PriceFind",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "puppeteer": "^21.6.1",
+    "tesseract.js": "^5.0.4",
+    "sharp": "^0.33.1",
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
