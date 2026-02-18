@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,19 +12,34 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useRouter } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 
 export default function ProfileSettings() {
   const { signOut, user } = useAuth();
+  const { isDarkMode, setThemeMode } = useTheme();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [priceDropAlerts, setPriceDropAlerts] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [userData, setUserData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const toggleDarkMode = async () => {
+    // Toggle between light and dark (not using 'auto' for simplicity)
+    const newMode = isDarkMode ? 'light' : 'dark';
+    await setThemeMode(newMode);
+  };
+
+  const switchTrackColor = { false: colors.cardBorder, true: colors.accent };
+  const switchThumbColor = colors.card;
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -77,7 +92,7 @@ export default function ProfileSettings() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Name</Text>
           {isLoading ? (
-            <ActivityIndicator size="small" color="#111" />
+            <ActivityIndicator size="small" color={colors.text} />
           ) : (
             <TextInput 
               value={userData?.first_name && userData?.last_name 
@@ -86,6 +101,7 @@ export default function ProfileSettings() {
                   ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
                   : 'Not set'} 
               style={styles.input}
+              placeholderTextColor={colors.textMuted}
               editable={false}
             />
           )}
@@ -97,6 +113,7 @@ export default function ProfileSettings() {
             value={user?.email || ''}
             editable={false}
             style={styles.inputDisabled}
+            placeholderTextColor={colors.textMuted}
           />
         </View>
 
@@ -107,6 +124,7 @@ export default function ProfileSettings() {
             style={styles.input}
             placeholder="Enter location"
             editable={false}
+            placeholderTextColor={colors.textMuted}
           />
         </View>
 
@@ -122,10 +140,15 @@ export default function ProfileSettings() {
 
         <View style={styles.row}>
           <View style={styles.rowLeft}>
-            <Feather name={isDarkMode ? "moon" : "sun"} size={20} color="#666" style={{ marginRight: 10 }} />
+            <Feather name={isDarkMode ? "moon" : "sun"} size={20} color={colors.icon} style={{ marginRight: 10 }} />
             <Text style={styles.rowLabel}>Dark Mode</Text>
           </View>
-          <Switch value={isDarkMode} onValueChange={setIsDarkMode} />
+          <Switch
+            value={isDarkMode}
+            onValueChange={toggleDarkMode}
+            trackColor={switchTrackColor}
+            thumbColor={switchThumbColor}
+          />
         </View>
       </View>
 
@@ -135,17 +158,32 @@ export default function ProfileSettings() {
 
         <View style={styles.row}>
           <Text style={styles.rowLabel}>Price Drop Alerts</Text>
-          <Switch value={priceDropAlerts} onValueChange={setPriceDropAlerts} />
+          <Switch
+            value={priceDropAlerts}
+            onValueChange={setPriceDropAlerts}
+            trackColor={switchTrackColor}
+            thumbColor={switchThumbColor}
+          />
         </View>
 
         <View style={styles.row}>
           <Text style={styles.rowLabel}>Email Notifications</Text>
-          <Switch value={emailNotifications} onValueChange={setEmailNotifications} />
+          <Switch
+            value={emailNotifications}
+            onValueChange={setEmailNotifications}
+            trackColor={switchTrackColor}
+            thumbColor={switchThumbColor}
+          />
         </View>
 
         <View style={styles.row}>
           <Text style={styles.rowLabel}>All Notifications</Text>
-          <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled} />
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={setNotificationsEnabled}
+            trackColor={switchTrackColor}
+            thumbColor={switchThumbColor}
+          />
         </View>
       </View>
 
@@ -155,7 +193,7 @@ export default function ProfileSettings() {
 
         <TouchableOpacity style={styles.listButton} onPress={() => { /* handle */ }}>
           <View style={styles.listLeft}>
-            <Feather name="eye" size={20} color="#666" />
+            <Feather name="eye" size={20} color={colors.icon} />
             <Text style={styles.listText}>Data & Privacy</Text>
           </View>
           <Feather name="chevron-right" size={20} color="#666" />
@@ -163,10 +201,10 @@ export default function ProfileSettings() {
 
         <TouchableOpacity style={styles.listButton} onPress={() => { /* handle */ }}>
           <View style={styles.listLeft}>
-            <Feather name="lock" size={20} color="#666" />
+            <Feather name="lock" size={20} color={colors.icon} />
             <Text style={styles.listText}>Two-Factor Authentication</Text>
           </View>
-          <Feather name="chevron-right" size={20} color="#666" />
+          <Feather name="chevron-right" size={20} color={colors.icon} />
         </TouchableOpacity>
       </View>
 
@@ -214,7 +252,7 @@ export default function ProfileSettings() {
         onPress={handleLogout}
         style={styles.logoutButton}
       >
-        <Feather name="log-out" size={18} color="#d00" style={{ marginRight: 8 }} />
+        <Feather name="log-out" size={18} color={colors.danger} style={{ marginRight: 8 }} />
         <Text style={styles.logoutText}>Sign Out</Text>
       </TouchableOpacity>
 
@@ -224,99 +262,113 @@ export default function ProfileSettings() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { paddingBottom: 30, backgroundColor: "#fff" },
+const createStyles = (colors: typeof Colors.light | typeof Colors.dark) =>
+  StyleSheet.create({
+    container: { paddingBottom: 30, backgroundColor: colors.background },
 
-  header: { backgroundColor: "#007AFF", padding: 16 },
-  headerText: { color: "#fff", fontSize: 22, fontWeight: "bold" },
+    header: { backgroundColor: colors.accent, padding: 16 },
+    headerText: { color: colors.card, fontSize: 22, fontWeight: "bold" },
 
-  card: {
-    margin: 12,
-    backgroundColor: "#f9f9f9",
-    padding: 14,
-    borderRadius: 10,
-    elevation: 1,
-  },
+    card: {
+      margin: 12,
+      backgroundColor: colors.card,
+      padding: 14,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.cardBorder,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 1,
+    },
 
-  cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 10 },
+    cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 10, color: colors.text },
 
-  inputGroup: { marginBottom: 12 },
-  label: { fontSize: 12, color: "#555", marginBottom: 4 },
+    inputGroup: { marginBottom: 12 },
+    label: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
 
-  input: {
-    backgroundColor: "#eee",
-    padding: 8,
-    borderRadius: 6,
-  },
+    input: {
+      backgroundColor: colors.surface,
+      padding: 8,
+      borderRadius: 6,
+      color: colors.text,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.cardBorder,
+    },
 
-  inputDisabled: {
-    backgroundColor: "#ddd",
-    padding: 8,
-    borderRadius: 6,
-    color: "#888",
-  },
+    inputDisabled: {
+      backgroundColor: colors.surface,
+      padding: 8,
+      borderRadius: 6,
+      color: colors.textMuted,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.cardBorder,
+    },
 
-  buttonOutline: {
-    marginTop: 6,
-    padding: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#aaa",
-    borderRadius: 8,
-  },
+    buttonOutline: {
+      marginTop: 6,
+      padding: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      borderRadius: 8,
+    },
 
-  buttonText: { fontSize: 14 },
+    buttonText: { fontSize: 14, color: colors.text },
 
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    alignItems: "center",
-  },
+    row: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+      alignItems: "center",
+    },
 
-  rowLeft: { 
-    flexDirection: "row", 
-    alignItems: "center" 
-  },
+    rowLeft: { 
+      flexDirection: "row", 
+      alignItems: "center" 
+    },
 
-  rowLabel: { fontSize: 14 },
+    rowLabel: { fontSize: 14, color: colors.text },
 
-  listButton: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-  },
+    listButton: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.divider,
+    },
 
-  listLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+    listLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
 
-  listText: { fontSize: 14, marginLeft: 10 },
+    listText: { fontSize: 14, marginLeft: 10, color: colors.text },
 
-  appInfo: { alignItems: "center", marginTop: 16 },
-  appInfoText: { fontSize: 10, color: "#777" },
+    appInfo: { alignItems: "center", marginTop: 16 },
+    appInfoText: { fontSize: 10, color: colors.textMuted },
 
-  resetButton: {
-    padding: 10,
-    marginHorizontal: 14,
-    marginTop: 12,
-    borderRadius: 8,
-    backgroundColor: "#f0f0f0",
-    alignItems: "center",
-  },
+    resetButton: {
+      padding: 10,
+      marginHorizontal: 14,
+      marginTop: 12,
+      borderRadius: 8,
+      backgroundColor: colors.surface,
+      alignItems: "center",
+    },
 
-  resetText: { color: "#666", fontSize: 12 },
+    resetText: { color: colors.textMuted, fontSize: 12 },
 
-  logoutButton: {
-    borderWidth: 1,
-    borderColor: "#d00",
-    padding: 12,
-    marginHorizontal: 14,
-    marginTop: 20,
-    borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+    logoutButton: {
+      borderWidth: 1,
+      borderColor: colors.danger,
+      padding: 12,
+      marginHorizontal: 14,
+      marginTop: 20,
+      borderRadius: 8,
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+    },
 
-  logoutText: { color: "#d00", fontSize: 14 },
-});
+    logoutText: { color: colors.danger, fontSize: 14, fontWeight: '600' },
+  });

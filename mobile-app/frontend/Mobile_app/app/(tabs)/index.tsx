@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,6 +16,8 @@ import { useList } from '@/contexts/ListContext';
 import { useFavourites } from '@/contexts/FavouritesContext';
 import { fetchDealsGroupedByDateRange, fetchDealsByDateRange, GroupedDeals, DealWithProduct } from '@/utils/deals-grouping';
 import DealCard from '@/components/DealCard';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function HomeScreen() {
   const [groupedDeals, setGroupedDeals] = useState<GroupedDeals[]>([]);
@@ -33,6 +35,9 @@ export default function HomeScreen() {
   
   const { lists, addItemToList, removeFromList, isInList } = useList();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors, colorScheme), [colors, colorScheme]);
 
   const fetchDeals = useCallback(async () => {
     setIsLoading(true);
@@ -194,7 +199,7 @@ export default function HomeScreen() {
       <View style={styles.container}>
         <Text style={styles.heading}>🔥 Hot Deals</Text>
         <View style={styles.loaderWrapper}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Loading deals...</Text>
         </View>
       </View>
@@ -207,7 +212,7 @@ export default function HomeScreen() {
       
       {groupedDeals.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="pricetag-outline" size={64} color="#ccc" />
+          <Ionicons name="pricetag-outline" size={64} color={colors.icon} />
           <Text style={styles.emptyTitle}>No deals available</Text>
           <Text style={styles.emptySubtitle}>Check back later for amazing deals</Text>
         </View>
@@ -218,7 +223,7 @@ export default function HomeScreen() {
           renderItem={renderDealGroup}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />
           }
         />
       )}
@@ -243,7 +248,7 @@ export default function HomeScreen() {
               </Text>
             </View>
             <Pressable onPress={() => setModalVisible(false)} hitSlop={10}>
-              <Ionicons name="close-circle" size={32} color="#6b7280" />
+              <Ionicons name="close-circle" size={32} color={colors.icon} />
             </Pressable>
           </View>
 
@@ -253,7 +258,7 @@ export default function HomeScreen() {
               <Ionicons 
                 name={sortByPrice === 'asc' ? 'arrow-up' : sortByPrice === 'desc' ? 'arrow-down' : 'swap-vertical'} 
                 size={16} 
-                color="#3b82f6" 
+                color={colors.accent} 
               />
               <Text style={styles.sortButtonText}>
                 {sortByPrice === 'asc' ? 'Price: Low to High' : sortByPrice === 'desc' ? 'Price: High to Low' : 'Sort by Price'}
@@ -267,7 +272,7 @@ export default function HomeScreen() {
               <Ionicons 
                 name={showDealsOnly ? 'pricetag' : 'pricetag-outline'} 
                 size={16} 
-                color={showDealsOnly ? '#10b981' : '#6b7280'} 
+                color={showDealsOnly ? colors.success : colors.icon} 
               />
               <Text style={[styles.filterButtonText, showDealsOnly && styles.filterButtonTextActive]}>
                 Deals Only
@@ -277,7 +282,7 @@ export default function HomeScreen() {
 
           {loadingAllDeals ? (
             <View style={styles.modalLoading}>
-              <ActivityIndicator size="large" color="#3b82f6" />
+              <ActivityIndicator size="large" color={colors.accent} />
               <Text style={styles.loadingText}>Loading deals...</Text>
             </View>
           ) : (
@@ -316,7 +321,7 @@ export default function HomeScreen() {
             <View style={styles.listModalHeader}>
               <Text style={styles.listModalTitle}>Add to List</Text>
               <Pressable onPress={() => setListSelectionVisible(false)} hitSlop={10}>
-                <Ionicons name="close" size={24} color="#6b7280" />
+                <Ionicons name="close" size={24} color={colors.icon} />
               </Pressable>
             </View>
             
@@ -331,7 +336,7 @@ export default function HomeScreen() {
             <ScrollView style={styles.listScrollView}>
               {lists.length === 0 ? (
                 <View style={styles.noListsContainer}>
-                  <Ionicons name="list-outline" size={48} color="#9aa0a6" />
+                  <Ionicons name="list-outline" size={48} color={colors.icon} />
                   <Text style={styles.noListsText}>No lists yet</Text>
                   <Text style={styles.noListsSubtext}>
                     Go to the My List tab to create your first list
@@ -345,7 +350,7 @@ export default function HomeScreen() {
                     onPress={() => handleSelectList(list.list_id)}
                   >
                     <View style={styles.listOptionIcon}>
-                      <Ionicons name="list" size={24} color="#4f46e5" />
+                      <Ionicons name="list" size={24} color={colors.accent} />
                     </View>
                     <View style={styles.listOptionInfo}>
                       <Text style={styles.listOptionName}>{list.list_name}</Text>
@@ -353,7 +358,7 @@ export default function HomeScreen() {
                         {list.item_count || 0} {list.item_count === 1 ? 'item' : 'items'}
                       </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="#9aa0a6" />
+                    <Ionicons name="chevron-forward" size={20} color={colors.icon} />
                   </Pressable>
                 ))
               )}
@@ -365,256 +370,259 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fb',
-    paddingTop: 48,
-  },
-  heading: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 16,
-    color: '#111',
-    paddingHorizontal: 16,
-  },
-  loaderWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  listContent: {
-    paddingBottom: 32,
-  },
-  groupContainer: {
-    marginBottom: 24,
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  dateRange: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 2,
-  },
-  dealCountText: {
-    fontSize: 13,
-    color: '#6b7280',
-  },
-  viewAllText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3b82f6',
-  },
-  dealsScroll: {
-    paddingHorizontal: 16,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  errorText: {
-    position: 'absolute',
-    bottom: 24,
-    left: 16,
-    right: 16,
-    backgroundColor: '#fee2e2',
-    padding: 12,
-    borderRadius: 8,
-    color: '#dc2626',
-    textAlign: 'center',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#f8f9fb',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 4,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  sortContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    gap: 8,
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  sortButtonText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3b82f6',
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  filterButtonActive: {
-    backgroundColor: '#d1fae5',
-    borderColor: '#10b981',
-  },
-  filterButtonText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  filterButtonTextActive: {
-    color: '#10b981',
-  },
-  modalLoading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  modalRow: {
-    justifyContent: 'space-between',
-  },
-  modalDealCard: {
-    width: '48%',
-    marginBottom: 16,
-  },
-  listModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  listModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-  },
-  listModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  listModalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111',
-  },
-  productPreview: {
-    padding: 16,
-    backgroundColor: '#f8f9fb',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  productPreviewText: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  listScrollView: {
-    maxHeight: 400,
-  },
-  noListsContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  noListsText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  noListsSubtext: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-  listOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  listOptionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#eef2ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  listOptionInfo: {
-    flex: 1,
-  },
-  listOptionName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 2,
-  },
-  listOptionCount: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-});
+const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark') =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      paddingTop: 48,
+    },
+    heading: {
+      fontSize: 28,
+      fontWeight: '700',
+      marginBottom: 16,
+      color: colors.text,
+      paddingHorizontal: 16,
+    },
+    loaderWrapper: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+    listContent: {
+      paddingBottom: 32,
+    },
+    groupContainer: {
+      marginBottom: 24,
+    },
+    groupHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+    dateRange: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    dealCountText: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    viewAllText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.accent,
+    },
+    dealsScroll: {
+      paddingHorizontal: 16,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    errorText: {
+      position: 'absolute',
+      bottom: 24,
+      left: 16,
+      right: 16,
+      backgroundColor: colorScheme === 'dark' ? '#3b1f21' : '#fee2e2',
+      padding: 12,
+      borderRadius: 8,
+      color: colors.danger,
+      textAlign: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.danger,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingTop: 60,
+      paddingBottom: 16,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    modalSubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    sortContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+      gap: 8,
+    },
+    sortButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    sortButtonText: {
+      marginLeft: 6,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.accent,
+    },
+    filterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    filterButtonActive: {
+      backgroundColor: colorScheme === 'dark' ? '#123228' : '#d1fae5',
+      borderColor: colors.success,
+    },
+    filterButtonText: {
+      marginLeft: 6,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    filterButtonTextActive: {
+      color: colors.success,
+    },
+    modalLoading: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      padding: 16,
+      paddingBottom: 32,
+    },
+    modalRow: {
+      justifyContent: 'space-between',
+    },
+    modalDealCard: {
+      width: '48%',
+      marginBottom: 16,
+    },
+    listModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    listModalContent: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '70%',
+    },
+    listModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    listModalTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    productPreview: {
+      padding: 16,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    productPreviewText: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    listScrollView: {
+      maxHeight: 400,
+    },
+    noListsContainer: {
+      padding: 40,
+      alignItems: 'center',
+    },
+    noListsText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    noListsSubtext: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    listOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    listOptionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: colorScheme === 'dark' ? '#1c2733' : '#eef2ff',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    listOptionInfo: {
+      flex: 1,
+    },
+    listOptionName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    listOptionCount: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+  });

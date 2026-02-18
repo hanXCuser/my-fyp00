@@ -1,9 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View, FlatList, Image, Pressable } from 'react-native';
+import { useMemo } from 'react';
 import { useFavourites } from '@/contexts/FavouritesContext';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function SavedScreen() {
   const { favouriteItems, removeFromFavourites } = useFavourites();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const renderFavouriteItem = ({ item }: { item: any }) => {
     const hasDeal = Boolean(item.deal);
@@ -31,7 +37,7 @@ export default function SavedScreen() {
         <Pressable
           style={styles.removeButton}
           onPress={() => removeFromFavourites(item.product_id)}>
-          <Ionicons name="heart" size={24} color="#ff3366" />
+          <Ionicons name="heart" size={24} color={colors.danger} />
         </Pressable>
       </View>
     );
@@ -42,7 +48,7 @@ export default function SavedScreen() {
       <Text style={styles.heading}>Saved Favourites</Text>
       {favouriteItems.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="heart-outline" size={80} color="#9aa0a6" />
+          <Ionicons name="heart-outline" size={80} color={colors.icon} />
           <Text style={styles.emptyTitle}>No favourites yet</Text>
           <Text style={styles.emptySubtitle}>
             Tap the heart icon on products to save them here
@@ -60,87 +66,88 @@ export default function SavedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fb',
-    paddingTop: 48,
-    paddingHorizontal: 16,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#111',
-  },
-  listContent: {
-    paddingBottom: 32,
-  },
-  listItem: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#edf0f5',
-  },
-  itemImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: '#e9eef5',
-  },
-  itemInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 4,
-  },
-  itemBrand: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 6,
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  itemPrice: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111',
-  },
-  itemDiscount: {
-    marginLeft: 8,
-    color: '#ff3366',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  removeButton: {
-    padding: 8,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 100,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-  },
-});
+const createStyles = (colors: typeof Colors.light) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      paddingTop: 48,
+      paddingHorizontal: 16,
+    },
+    heading: {
+      fontSize: 24,
+      fontWeight: '600',
+      marginBottom: 16,
+      color: colors.text,
+    },
+    listContent: {
+      paddingBottom: 32,
+    },
+    listItem: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    itemImage: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+      backgroundColor: colors.surface,
+    },
+    itemInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    itemName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    itemBrand: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 6,
+    },
+    priceContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    itemPrice: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    itemDiscount: {
+      marginLeft: 8,
+      color: colors.danger,
+      fontWeight: '600',
+      fontSize: 12,
+    },
+    removeButton: {
+      padding: 8,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingBottom: 100,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+  });

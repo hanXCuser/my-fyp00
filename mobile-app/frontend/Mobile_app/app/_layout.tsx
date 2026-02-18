@@ -5,12 +5,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ListProvider } from "@/contexts/ListContext";
 import { FavouritesProvider } from "@/contexts/FavouritesContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 function RootLayoutNav() {
   const router = useRouter();
   const segments = useSegments();
 
   const { session, isLoading: authLoading } = useAuth();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme];
 
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
@@ -65,14 +70,19 @@ function RootLayoutNav() {
 
   if (authLoading || hasSeenOnboarding === null) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#111" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }] }>
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="login" />
       <Stack.Screen name="signup" />
@@ -83,13 +93,15 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <FavouritesProvider>
-        <ListProvider>
-          <RootLayoutNav />
-        </ListProvider>
-      </FavouritesProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <FavouritesProvider>
+          <ListProvider>
+            <RootLayoutNav />
+          </ListProvider>
+        </FavouritesProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
@@ -98,6 +110,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
   },
 });
