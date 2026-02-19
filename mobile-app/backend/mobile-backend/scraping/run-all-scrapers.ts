@@ -4,33 +4,39 @@
  */
 
 import { archiveCurrentPrices } from './archive-and-rescrape';
+import { runIntermartScrape, runSuperUScrape, runWinnersScrape, ScrapeSummary } from './run-helpers';
 
-interface Scraper {
+interface ScraperEntry {
   name: string;
-  fn: () => Promise<void>;
+  runner: () => Promise<ScrapeSummary>;
 }
 
-async function runAllScrapers() {
+interface ScrapeResults {
+  successful: ScrapeSummary[];
+  failed: { name: string; error: string }[];
+}
+
+async function runAllScrapers(): Promise<ScrapeResults> {
   console.log('Running all scrapers...\n');
-  
-  const scrapers: Scraper[] = [
-    // Add your scraper imports and functions here when ready
+
+  const scrapers: ScraperEntry[] = [
+    { name: 'Intermart', runner: runIntermartScrape },
+    { name: 'Super U', runner: runSuperUScrape },
+    { name: 'Winners', runner: runWinnersScrape },
   ];
 
-  const results = {
-    successful: [] as string[],
-    failed: [] as string[],
-  };
+  const results: ScrapeResults = { successful: [], failed: [] };
 
   for (const scraper of scrapers) {
     try {
       console.log(`\nRunning ${scraper.name} scraper...`);
-      await scraper.fn();
+      const summary = await scraper.runner();
       console.log(`${scraper.name} completed successfully`);
-      results.successful.push(scraper.name);
-    } catch (error) {
-      console.error(`${scraper.name} failed:`, error);
-      results.failed.push(scraper.name);
+      results.successful.push(summary);
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      console.error(`${scraper.name} failed:`, message);
+      results.failed.push({ name: scraper.name, error: message });
     }
   }
 
@@ -61,11 +67,21 @@ async function main() {
   console.log('SUMMARY');
   console.log('-'.repeat(60));
   console.log(`Successful: ${results.successful.length}`);
-  results.successful.forEach(name => console.log(`   - ${name}`));
-  
+  results.successful.forEach(summary => {
+    console.log(`   - ${summary.retailer}: ${summary.productsCreated} products / ${summary.dealsCreated} deals`);
+    if (summary.extra) {
+      Object.entries(summary.extra).forEach(([key, value]) => {
+        console.log(`       ${key}: ${value}`);
+      });
+    }
+    if (summary.errors.length) {
+      console.log(`       Errors: ${summary.errors.join('; ')}`);
+    }
+  });
+
   if (results.failed.length > 0) {
     console.log(`\nFailed: ${results.failed.length}`);
-    results.failed.forEach(name => console.log(`   - ${name}`));
+    results.failed.forEach(item => console.log(`   - ${item.name}: ${item.error}`));
   }
   
   console.log('\nProcess complete!');

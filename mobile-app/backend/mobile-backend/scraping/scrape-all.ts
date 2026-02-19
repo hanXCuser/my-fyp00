@@ -14,12 +14,8 @@ async function scrapeAllRetailers() {
 
   // Retailer configuration
   const retailers: { name: RetailerName; displayName: string; website: string; description: string }[] = [
-    { name: 'shoprite', displayName: 'Shoprite', website: 'https://www.shoprite.co.za', description: 'Shoprite Mauritius - Leading supermarket chain' },
-    // Other retailers disabled for testing - enable when scrapers are fixed
-    // { name: 'winners', displayName: 'Winners', website: 'https://www.winnersmauritius.com', description: 'Winners - Mauritian supermarket chain' },
-    // { name: 'carrefour', displayName: 'Carrefour', website: 'https://www.carrefour.mu', description: 'Carrefour - French multinational retail corporation' },
-    // { name: 'spar', displayName: 'Spar', website: 'https://www.spar.mu', description: 'Spar - International retail chain' },
-    // { name: 'superu', displayName: 'Super U', website: 'https://www.superu.mu', description: 'Super U - French supermarket brand' },
+    { name: 'superu', displayName: 'Super U', website: 'https://www.superu.mu', description: 'Super U - French supermarket brand' },
+    { name: 'winners', displayName: 'Winners', website: 'https://www.winners.mu', description: 'Winners - Mauritian supermarket chain' },
   ];
 
   // Deal validity period (7 days from now)

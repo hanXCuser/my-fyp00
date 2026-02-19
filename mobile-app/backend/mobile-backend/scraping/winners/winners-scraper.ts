@@ -264,7 +264,9 @@ export class WinnersScraper {
     try {
       console.log(`🛒 Scraping ${this.retailer}...`);
 
+      // Try homepage first (where Promos section is), then other URLs
       const possibleUrls = [
+        '/',              // Homepage with "Promos" section
         '/promotions',
         '/specials',
         '/deals',
@@ -301,37 +303,89 @@ export class WinnersScraper {
 
       const $ = cheerio.load(html);
 
-      // Test these selectors with DevTools!
+      // Updated selectors for Winners.mu homepage structure
       const selectors = {
-        container: '.product, .product-item, .deal-item, .promo',
-        name: '.name, .title, h3, .product-name',
-        price: '.price, .sale-price, .promo-price',
-        originalPrice: '.original-price, .was, del',
+        container: '.product-thumb, .product-item, .deal-item, .item, .product',
+        name: '.name, .title, h3, h4, .product-name, .caption h4',
+        price: '.price, .sale-price, .promo-price, .price-new, .price-old',
+        originalPrice: '.original-price, .was, del, .price-tax',
         image: 'img',
-        brand: '.brand',
+        brand: '.brand, .manufacturer',
         category: '.category',
       };
 
       console.log(`🔍 Searching for products...`);
+      console.log(`📍 Trying selectors on: ${successUrl}`);
 
       $(selectors.container).each((i, el) => {
         try {
           const $el = $(el);
 
+          // Try multiple name selectors
           const name = this.utils.sanitizeText(
             $el.find(selectors.name).first().text() ||
-            $el.find('h2, h3, h4, .heading').first().text()
+            $el.find('h2, h3, h4, .heading, .caption h4, a.product-name').first().text() ||
+            $el.find('a[href*="product"]').first().text()
           );
 
-          if (!name) return;
+          if (!name || name.length < 2) {
+            // Skip if no valid product name
+            return;
+          }
 
-          const priceText = $el.find(selectors.price).first().text();
-          const price = this.utils.extractPrice(priceText);
+          // Try to find price with multiple patterns
+          // Winners uses .actual-price for sale price and .old-price for original
+          let price = 0;
+          const priceSelectors = [
+            '.actual-price',  // Winners specific: actual sale price
+            '.price.actual-price',
+            '.price-new', '.sale-price', '.promo-price', '.price-current',
+            '.price',  // Generic fallback
+            'span[class*="price"]', 'div[class*="price"]'
+          ];
+          
+          for (const selector of priceSelectors) {
+            const priceText = $el.find(selector).first().text();
+            price = this.utils.extractPrice(priceText);
+            if (price > 0) break;
+          }
 
-          if (price === 0) return;
+          // If still no price, try extracting from any text containing Rs or MUR
+          if (price === 0) {
+            const allText = $el.text();
+            const priceMatch = allText.match(/Rs\s*(\d+(?:[.,]\d{2})?)|MUR\s*(\d+(?:[.,]\d{2})?)/i);
+            if (priceMatch) {
+              price = parseFloat((priceMatch[1] || priceMatch[2]).replace(',', '.'));
+            }
+          }
 
-          const originalPriceText = $el.find(selectors.originalPrice).first().text();
-          const originalPrice = originalPriceText ? this.utils.extractPrice(originalPriceText) : undefined;
+          if (price === 0) {
+            console.log(`⚠️  Skipping product "${name}" - no price found`);
+            return;
+          }
+
+          // Enhanced original price extraction (strikethrough/crossed out prices)
+          // Winners uses .old-price for strikethrough prices
+          let originalPrice: number | undefined;
+          const originalPriceSelectors = [
+            '.old-price',  // Winners specific: strikethrough price
+            '.price.old-price',
+            'del', 'strike', 's',  // HTML strikethrough elements
+            '.price-old', '.original-price', '.was-price', '.regular-price',
+            '.price-before', '.price-retail', '.list-price',
+            'span[style*="text-decoration: line-through"]',
+            'span[style*="text-decoration:line-through"]',
+            '.price-tax'  // Sometimes used for original price
+          ];
+
+          for (const selector of originalPriceSelectors) {
+            const originalText = $el.find(selector).first().text();
+            const extracted = this.utils.extractPrice(originalText);
+            if (extracted > 0 && extracted > price) {
+              originalPrice = extracted;
+              break;
+            }
+          }
 
           const discount = originalPrice && originalPrice > price
             ? Math.round(((originalPrice - price) / originalPrice) * 100)
@@ -339,7 +393,8 @@ export class WinnersScraper {
 
           let image_url = $el.find(selectors.image).first().attr('src') ||
                           $el.find(selectors.image).first().attr('data-src') ||
-                          $el.find(selectors.image).first().attr('data-lazy-src');
+                          $el.find(selectors.image).first().attr('data-lazy-src') ||
+                          $el.find('img').first().attr('src');
 
           if (image_url && !image_url.startsWith('http')) {
             image_url = image_url.startsWith('//')
@@ -347,16 +402,26 @@ export class WinnersScraper {
               : `${this.website}${image_url.startsWith('/') ? '' : '/'}${image_url}`;
           }
 
-          products.push({
+          const product: ScrapedProduct = {
             name,
             price,
             originalPrice,
             discount,
             image_url,
             brand: this.utils.sanitizeText($el.find(selectors.brand).first().text()) || undefined,
-            category: this.utils.sanitizeText($el.find(selectors.category).first().text()) || undefined,
+            category: this.utils.sanitizeText($el.find(selectors.category).first().text()) || 
+                     this.categorizeProduct(name),
             url: successUrl,
-          });
+          };
+
+          products.push(product);
+          
+          // Enhanced logging to show original prices and discounts
+          if (originalPrice && discount) {
+            console.log(`✓ Found: ${name} - Rs ${price} (was Rs ${originalPrice}, ${discount}% off)`);
+          } else {
+            console.log(`✓ Found: ${name} - Rs ${price}`);
+          }
 
         } catch (error: any) {
           console.error(`Error parsing product ${i}:`, error.message);

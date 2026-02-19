@@ -131,7 +131,7 @@ export class SuperUScraper {
     const priceSelectors = ['.price', '.prix', '.product-price', '.special-price', '.now', '.amount'];
     const originalSelectors = ['.old-price', '.prix-barre', 'del', '.was-price', '.original-price'];
 
-    let containers: cheerio.Cheerio | null = null;
+    let containers: cheerio.Cheerio<cheerio.Element> | null = null;
     for (const sel of containerCandidates) {
       const found = $(sel);
       if (found && found.length > 0) {
@@ -157,7 +157,7 @@ export class SuperUScraper {
     if (!containers) {
       console.log('⚠️ No product containers found');
     } else {
-      containers.each((i, el) => {
+      containers.each((i: number, el) => {
         try {
           const $el = $(el);
 
