@@ -1,9 +1,15 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View, FlatList, Image, Pressable } from 'react-native';
 import { useFavourites } from '@/contexts/FavouritesContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Colors } from '@/constants/theme';
+import { useMemo } from 'react';
 
 export default function SavedScreen() {
   const { favouriteItems, removeFromFavourites } = useFavourites();
+  const { colorScheme } = useTheme();
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const renderFavouriteItem = ({ item }: { item: any }) => {
     const hasDeal = Boolean(item.deal);
@@ -42,7 +48,7 @@ export default function SavedScreen() {
       <Text style={styles.heading}>Saved Favourites</Text>
       {favouriteItems.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="heart-outline" size={80} color="#9aa0a6" />
+          <Ionicons name="heart-outline" size={80} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>No favourites yet</Text>
           <Text style={styles.emptySubtitle}>
             Tap the heart icon on products to save them here
@@ -60,10 +66,10 @@ export default function SavedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fb',
+    backgroundColor: colors.screenBackground,
     paddingTop: 48,
     paddingHorizontal: 16,
   },
@@ -71,26 +77,26 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     marginBottom: 16,
-    color: '#111',
+    color: colors.textPrimary,
   },
   listContent: {
     paddingBottom: 32,
   },
   listItem: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#edf0f5',
+    borderColor: colors.borderColor,
   },
   itemImage: {
     width: 80,
     height: 80,
     borderRadius: 8,
-    backgroundColor: '#e9eef5',
+    backgroundColor: colors.surface,
   },
   itemInfo: {
     flex: 1,
@@ -99,12 +105,12 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   itemBrand: {
     fontSize: 13,
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   priceContainer: {
@@ -114,7 +120,7 @@ const styles = StyleSheet.create({
   itemPrice: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111',
+    color: colors.textPrimary,
   },
   itemDiscount: {
     marginLeft: 8,
@@ -134,13 +140,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 });

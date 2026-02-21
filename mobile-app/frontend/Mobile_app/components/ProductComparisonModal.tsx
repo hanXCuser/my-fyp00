@@ -153,16 +153,16 @@ export default function ProductComparisonModal({
                     <View
                       style={[
                         styles.storeBadge,
-                        { backgroundColor: getStoreBadgeColor(deals[0].retailers?.supermarkets?.name || '') }
+                        { backgroundColor: getStoreBadgeColor(deals[0].retailers?.name || '') }
                       ]}
                     >
                       <Text style={styles.storeBadgeText}>
-                        {getStoreBadgeInitial(deals[0].retailers?.supermarkets?.name || '')}
+                        {getStoreBadgeInitial(deals[0].retailers?.name || '')}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.storeName}>
-                    {deals[0].retailers?.supermarkets?.name || deals[0].retailers?.name || 'Unknown Store'}
+                    {deals[0].retailers?.name || 'Unknown Store'}
                   </Text>
                 </View>
               </View>
@@ -190,16 +190,16 @@ export default function ProductComparisonModal({
                       <View
                         style={[
                           styles.storeIcon,
-                          { backgroundColor: getStoreBadgeColor(deal.retailers?.supermarkets?.name || '') }
+                          { backgroundColor: getStoreBadgeColor(deal.retailers?.name || '') }
                         ]}
                       >
                         <Text style={styles.storeIconText}>
-                          {getStoreBadgeInitial(deal.retailers?.supermarkets?.name || '')}
+                          {getStoreBadgeInitial(deal.retailers?.name || '')}
                         </Text>
                       </View>
                       <View style={styles.storeInfo}>
                         <Text style={[styles.storeCardName, { color: colors.text }]}>
-                          {deal.retailers?.supermarkets?.name || deal.retailers?.name || 'Unknown Store'}
+                          {deal.retailers?.name || 'Unknown Store'}
                         </Text>
                         <Text style={[styles.updatedText, { color: colors.textMuted }]}>
                           Valid until {formatDate(deal.end_date)}

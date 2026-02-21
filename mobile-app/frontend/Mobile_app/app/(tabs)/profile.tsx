@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,17 +12,21 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { Colors } from "@/constants/theme";
 import { useRouter } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 
 export default function ProfileSettings() {
   const { signOut, user } = useAuth();
+  const { isDarkMode, toggleTheme, colorScheme } = useTheme();
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [priceDropAlerts, setPriceDropAlerts] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [userData, setUserData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -77,7 +81,7 @@ export default function ProfileSettings() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Name</Text>
           {isLoading ? (
-            <ActivityIndicator size="small" color="#111" />
+            <ActivityIndicator size="small" color={colors.text} />
           ) : (
             <TextInput 
               value={userData?.first_name && userData?.last_name 
@@ -122,10 +126,10 @@ export default function ProfileSettings() {
 
         <View style={styles.row}>
           <View style={styles.rowLeft}>
-            <Feather name={isDarkMode ? "moon" : "sun"} size={20} color="#666" style={{ marginRight: 10 }} />
+            <Feather name={isDarkMode ? "moon" : "sun"} size={20} color={colors.textSecondary} style={{ marginRight: 10 }} />
             <Text style={styles.rowLabel}>Dark Mode</Text>
           </View>
-          <Switch value={isDarkMode} onValueChange={setIsDarkMode} />
+          <Switch value={isDarkMode} onValueChange={toggleTheme} />
         </View>
       </View>
 
@@ -155,18 +159,18 @@ export default function ProfileSettings() {
 
         <TouchableOpacity style={styles.listButton} onPress={() => { /* handle */ }}>
           <View style={styles.listLeft}>
-            <Feather name="eye" size={20} color="#666" />
+            <Feather name="eye" size={20} color={colors.textSecondary} />
             <Text style={styles.listText}>Data & Privacy</Text>
           </View>
-          <Feather name="chevron-right" size={20} color="#666" />
+          <Feather name="chevron-right" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.listButton} onPress={() => { /* handle */ }}>
           <View style={styles.listLeft}>
-            <Feather name="lock" size={20} color="#666" />
+            <Feather name="lock" size={20} color={colors.textSecondary} />
             <Text style={styles.listText}>Two-Factor Authentication</Text>
           </View>
-          <Feather name="chevron-right" size={20} color="#666" />
+          <Feather name="chevron-right" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -214,7 +218,7 @@ export default function ProfileSettings() {
         onPress={handleLogout}
         style={styles.logoutButton}
       >
-        <Feather name="log-out" size={18} color="#d00" style={{ marginRight: 8 }} />
+        <Feather name="log-out" size={18} color={colors.danger} style={{ marginRight: 8 }} />
         <Text style={styles.logoutText}>Sign Out</Text>
       </TouchableOpacity>
 
@@ -224,36 +228,37 @@ export default function ProfileSettings() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { paddingBottom: 30, backgroundColor: "#fff" },
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
+  container: { paddingBottom: 30, backgroundColor: colors.background },
 
-  header: { backgroundColor: "#007AFF", padding: 16 },
+  header: { backgroundColor: colors.primary, padding: 16 },
   headerText: { color: "#fff", fontSize: 22, fontWeight: "bold" },
 
   card: {
     margin: 12,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: colors.card,
     padding: 14,
     borderRadius: 10,
     elevation: 1,
   },
 
-  cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 10 },
+  cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 10, color: colors.text },
 
   inputGroup: { marginBottom: 12 },
-  label: { fontSize: 12, color: "#555", marginBottom: 4 },
+  label: { fontSize: 12, color: colors.textSecondary, marginBottom: 4 },
 
   input: {
-    backgroundColor: "#eee",
+    backgroundColor: colors.surface,
     padding: 8,
     borderRadius: 6,
+    color: colors.text,
   },
 
   inputDisabled: {
-    backgroundColor: "#ddd",
+    backgroundColor: colors.surface,
     padding: 8,
     borderRadius: 6,
-    color: "#888",
+    color: colors.textMuted,
   },
 
   buttonOutline: {
@@ -262,11 +267,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#aaa",
+    borderColor: colors.borderColor,
     borderRadius: 8,
   },
 
-  buttonText: { fontSize: 14 },
+  buttonText: { fontSize: 14, color: colors.text },
 
   row: {
     flexDirection: "row",
@@ -280,7 +285,7 @@ const styles = StyleSheet.create({
     alignItems: "center" 
   },
 
-  rowLabel: { fontSize: 14 },
+  rowLabel: { fontSize: 14, color: colors.text },
 
   listButton: {
     flexDirection: "row",
@@ -290,25 +295,25 @@ const styles = StyleSheet.create({
 
   listLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
 
-  listText: { fontSize: 14, marginLeft: 10 },
+  listText: { fontSize: 14, marginLeft: 10, color: colors.text },
 
   appInfo: { alignItems: "center", marginTop: 16 },
-  appInfoText: { fontSize: 10, color: "#777" },
+  appInfoText: { fontSize: 10, color: colors.textMuted },
 
   resetButton: {
     padding: 10,
     marginHorizontal: 14,
     marginTop: 12,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: colors.surface,
     alignItems: "center",
   },
 
-  resetText: { color: "#666", fontSize: 12 },
+  resetText: { color: colors.textSecondary, fontSize: 12 },
 
   logoutButton: {
     borderWidth: 1,
-    borderColor: "#d00",
+    borderColor: colors.danger,
     padding: 12,
     marginHorizontal: 14,
     marginTop: 20,
@@ -318,5 +323,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  logoutText: { color: "#d00", fontSize: 14 },
+  logoutText: { color: colors.danger, fontSize: 14 },
 });
