@@ -15,9 +15,9 @@ export async function archiveCurrentPrices() {
         deal_id,
         product_id,
         retailer_id,
+        supermarket_id,
         deal_price,
-        source,
-        deal_locations!inner(supermarket_id)
+        source
       `);
 
     if (fetchError) throw fetchError;
@@ -33,21 +33,14 @@ export async function archiveCurrentPrices() {
     const priceHistoryRecords = [];
     
     for (const deal of deals) {
-      // Get unique supermarket IDs for this deal
-      const supermarketIds = [...new Set(
-        deal.deal_locations.map((loc: any) => loc.supermarket_id)
-      )];
-
-      // Create a price history record for each supermarket location
-      for (const supermarket_id of supermarketIds) {
-        priceHistoryRecords.push({
-          product_id: deal.product_id,
-          supermarket_id: supermarket_id,
-          old_price: deal.deal_price,
-          collected_at: new Date().toISOString(),
-          source: deal.source || 'scraping'
-        });
-      }
+      // Create a price history record for this deal
+      priceHistoryRecords.push({
+        product_id: deal.product_id,
+        supermarket_id: deal.supermarket_id,
+        old_price: deal.deal_price,
+        collected_at: new Date().toISOString(),
+        source: deal.source || 'scraping'
+      });
     }
 
     console.log(`Inserting ${priceHistoryRecords.length} price history records...`);
