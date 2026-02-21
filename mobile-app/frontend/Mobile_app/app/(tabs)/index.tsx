@@ -17,6 +17,8 @@ import { Image } from 'expo-image';
 import { useList } from '@/contexts/ListContext';
 import { useFavourites } from '@/contexts/FavouritesContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { 
   fetchCheapestProducts, 
   fetchDealsByRetailer, 
@@ -34,6 +36,7 @@ export default function HomeScreen() {
   const [cheapestProducts, setCheapestProducts] = useState<CheapestProduct[]>([]);
   const [retailerDeals, setRetailerDeals] = useState<RetailerDeals[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
+  const [userLocation, setUserLocation] = useState<string>('Port Louis, MU');
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -49,6 +52,7 @@ export default function HomeScreen() {
   
   const { lists, addItemToList, removeFromList, isInList } = useList();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
+  const { user } = useAuth();
   const { colorScheme } = useTheme();
   const colors = Colors[colorScheme];
   const styles = useMemo(() => createStyles(colors, colorScheme), [colors, colorScheme]);
@@ -83,6 +87,31 @@ export default function HomeScreen() {
     };
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    const loadUserLocation = async () => {
+      if (user?.id) {
+        // Try getting location from user_metadata first
+        const metadataAddress = user.user_metadata?.address;
+        if (metadataAddress && !metadataAddress.includes('@')) {
+          setUserLocation(metadataAddress);
+          return;
+        }
+
+        // Fall back to database
+        const { data } = await supabase
+          .from('users')
+          .select('location')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+
+        if (data?.location && !data.location.includes('@')) {
+          setUserLocation(data.location);
+        }
+      }
+    };
+    loadUserLocation();
+  }, [user]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -174,7 +203,7 @@ export default function HomeScreen() {
           <Text style={styles.locationLabel}>Your Location</Text>
           <View style={styles.locationRow}>
             <Ionicons name="location" size={16} color="#fff" />
-            <Text style={styles.locationText}>Port Louis, MU</Text>
+            <Text style={styles.locationText} numberOfLines={2}>{userLocation}</Text>
           </View>
         </View>
         <Pressable style={styles.notificationButton}>
@@ -448,6 +477,8 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     },
     locationContainer: {
       marginBottom: 24,
+      paddingRight: 50,
+      flex: 1,
     },
     locationLabel: {
       fontSize: 12,
@@ -458,11 +489,13 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
+      flexWrap: 'wrap',
     },
     locationText: {
       fontSize: 14,
       fontWeight: '600',
       color: '#fff',
+      flex: 1,
     },
     notificationButton: {
       position: 'absolute',
