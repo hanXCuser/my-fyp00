@@ -132,21 +132,6 @@ export class WinnersScraper {
     }
   }
 
-  /**
-   * Convert extracted product to scraped product format
-   */
-  private convertToScrapedProduct(extracted: ExtractedProduct): ScrapedProduct {
-    return {
-      name: extracted.name,
-      brand: extracted.brand,
-      category: this.categorizeProduct(extracted.name),
-      price: extracted.salePrice,
-      originalPrice: extracted.originalPrice,
-      discount: extracted.discount,
-      unit: extracted.unit,
-      image_url: undefined, // Would need additional processing to extract from brochure
-    };
-  }
 
   /**
    * Simple category detection
@@ -177,12 +162,12 @@ export class WinnersScraper {
   /**
    * Attempt to extract deals from Paperturn brochure using OCR
    */
-  private async extractDealsFromBrochure(brochureUrl: string): Promise<ScrapedProduct[]> {
+  private async extractDealsFromBrochure(brochureUrl: string, brochureTitle: string): Promise<ScrapedProduct[]> {
     console.log('🔍 Extracting deals using OCR...');
     
     try {
       const ocrProcessor = new BrochureOCRProcessor();
-      const products = await ocrProcessor.processBrochure(brochureUrl, 5);
+      const products = await ocrProcessor.processBrochure(brochureUrl, brochureTitle, 5);
       
       console.log(`✅ OCR extracted ${products.length} products`);
       return products;
@@ -412,6 +397,7 @@ export class WinnersScraper {
             category: this.utils.sanitizeText($el.find(selectors.category).first().text()) || 
                      this.categorizeProduct(name),
             url: successUrl,
+            dealTitle: 'Winners Weekly Deals',  // Generic title for website promotions
           };
 
           products.push(product);
@@ -474,7 +460,7 @@ export class WinnersScraper {
           
           // Step 2: Try to extract deals from brochure
           console.log(`\n🔍 Step 2: Extracting deals from ${brochure.title}...`);
-          const extractedProducts = await this.extractDealsFromBrochure(brochure.url);
+          const extractedProducts = await this.extractDealsFromBrochure(brochure.url, brochure.title);
           
           if (extractedProducts.length > 0) {
             const retailer_id = await this.db.getOrCreateRetailer(
@@ -487,9 +473,10 @@ export class WinnersScraper {
               retailer_id,
               supermarket_id,
               extractedProducts,
-              'web_scraping',
+              'pamphlet',
               startDate,
-              endDate
+              endDate,
+              pamphletId
             );
 
             productsCreated += result.productsCreated;

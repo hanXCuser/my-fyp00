@@ -89,12 +89,13 @@ export class DatabaseService {
   /**
    * Create or update deal
    * Prevents duplicate deals for same product/supermarket/dates
+   * Automatically archives old price to price_history when price changes
    */
   async upsertDeal(deal: Omit<Deal, 'deal_id' | 'created_at'>): Promise<number> {
     // Check if deal exists (same product, supermarket, and date range)
     const { data: existing, error: fetchError } = await supabase
       .from('deals')
-      .select('deal_id, deal_price')
+      .select('deal_id, deal_price, product_id, supermarket_id, source, title')
       .eq('product_id', deal.product_id)
       .eq('supermarket_id', deal.supermarket_id)
       .eq('start_date', deal.start_date)
@@ -102,8 +103,21 @@ export class DatabaseService {
       .maybeSingle();
 
     if (existing) {
-      // Update existing deal if price changed
-      if (existing.deal_price !== deal.deal_price) {
+      const priceChanged = existing.deal_price !== deal.deal_price;
+      const titleChanged = existing.title !== deal.title;
+
+      // Update existing deal if price or title changed
+      if (priceChanged || titleChanged) {
+        // Archive old price to price_history before updating (only if price changed)
+        if (priceChanged) {
+          await this.archiveDealPrice(
+            existing.product_id,
+            existing.supermarket_id,
+            existing.deal_price,
+            existing.source || 'scraping'
+          );
+        }
+
         const { data, error } = await supabase
           .from('deals')
           .update(deal)
@@ -112,7 +126,11 @@ export class DatabaseService {
           .single();
 
         if (error) throw error;
-        console.log(`✓ Updated existing deal (ID: ${data.deal_id}) - Price changed from R${existing.deal_price} to R${deal.deal_price}`);
+        
+        const changes = [];
+        if (priceChanged) changes.push(`Price: R${existing.deal_price} → R${deal.deal_price}`);
+        if (titleChanged) changes.push(`Title: "${existing.title}" → "${deal.title}"`);
+        console.log(`✓ Updated existing deal (ID: ${data.deal_id}) - ${changes.join(', ')}`);
         return data.deal_id;
       } else {
         console.log(`✓ Deal already exists (ID: ${existing.deal_id}) - No changes needed`);
@@ -130,6 +148,43 @@ export class DatabaseService {
     if (error) throw error;
     console.log(`✓ Created new deal (ID: ${data.deal_id}) at R${deal.deal_price}`);
     return data.deal_id;
+  }
+
+  /**
+   * Archive a deal's price to price_history
+   * Called automatically when a deal's price changes
+   */
+  private async archiveDealPrice(
+    product_id: number,
+    supermarket_id: number,
+    old_price: number,
+    source: string
+  ): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('price_history')
+        .insert({
+          product_id,
+          supermarket_id,
+          old_price,
+          collected_at: new Date().toISOString(),
+          source
+        });
+      
+      // Ignore duplicate errors (constraint 23505) - they're expected and harmless
+      if (error) {
+        if (error.code === '23505') {
+          // Duplicate price history entry - already archived, skip silently
+          return;
+        }
+        throw error;
+      }
+      
+      console.log(`📊 Archived old price R${old_price} to history`);
+    } catch (error: any) {
+      console.error(`⚠️  Failed to archive price R${old_price}:`, error.message);
+      // Don't throw - we don't want archiving failure to block the deal update
+    }
   }
 
   /**
@@ -156,7 +211,8 @@ export class DatabaseService {
     scrapedProducts: ScrapedProduct[],
     source: string,
     startDate: string,
-    endDate: string
+    endDate: string,
+    pamphlet_id?: number
   ): Promise<{ productsCreated: number; dealsCreated: number }> {
     let productsCreated = 0;
     let dealsCreated = 0;
@@ -180,14 +236,14 @@ export class DatabaseService {
           product_id,
           supermarket_id,
           retailer_id,
-          title: scraped.name,
-          description: scraped.description,
+          pamphlet_id,
+          title: scraped.dealTitle || `${source} - ${startDate}`,  // Use deal title or fallback
           deal_price: scraped.price,
           original_price: scraped.originalPrice,
           discount: scraped.discount,
           start_date: startDate,
           end_date: endDate,
-          source,
+          source: pamphlet_id ? 'pamphlet' : source,  // Use 'pamphlet' if pamphlet_id exists
         };
 
         await this.upsertDeal(deal);

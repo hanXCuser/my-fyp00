@@ -17,7 +17,6 @@ export interface Deal {
   retailer_id: number;
   pamphlet_id?: number;
   title: string;
-  description?: string;
   deal_price: number;
   original_price?: number;
   discount?: number;
@@ -64,6 +63,7 @@ export interface ScrapedProduct {
   originalPrice?: number;
   discount?: number;
   url?: string;
+  dealTitle?: string;  // Deal/promotion name (not product name)
 }
 
 export interface ScraperResult {

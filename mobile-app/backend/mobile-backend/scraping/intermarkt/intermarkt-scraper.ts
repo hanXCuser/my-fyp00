@@ -6,6 +6,7 @@ import puppeteer from 'puppeteer';
 import Tesseract from 'tesseract.js';
 import { DatabaseService } from '../database';
 import { ScrapedProduct } from '../types';
+import { supabase } from '../supabase-node';
 
 export class IntermartScraper {
   private website = 'https://intermartmauritius.com/nos-activites/notre-offre/promotions-2/';
@@ -187,17 +188,45 @@ export class IntermartScraper {
   }
 
   /**
-   * Perform OCR on image buffer
+   * Perform OCR on image buffer with preprocessing
    */
   async performOCR(imageBuffer: Buffer): Promise<string> {
     try {
+      const sharp = require('sharp');
+      
+      // Preprocess image for better OCR accuracy
+      const preprocessedBuffer = await sharp(imageBuffer)
+        .resize(3000, null, { // Upscale to higher resolution
+          kernel: sharp.kernel.lanczos3,
+          fit: 'inside',
+          withoutEnlargement: false
+        })
+        .greyscale() // Convert to grayscale
+        .normalize() // Auto-adjust levels for better contrast
+        .sharpen({ sigma: 1 }) // Sharpen text edges
+        .linear(1.5, -(128 * 0.5)) // Increase contrast
+        .toBuffer();
+      
       const { data: { text } } = await Tesseract.recognize(
-        imageBuffer,
+        preprocessedBuffer,
         'eng+fra',
         {
           logger: () => {}, // Suppress verbose logging
         }
       );
+      
+      // Debug: Save OCR text to file
+      if (process.env.DEBUG_OCR === 'true') {
+        const debugDir = path.join(this.tempDir, 'ocr-output');
+        if (!fs.existsSync(debugDir)) {
+          fs.mkdirSync(debugDir, { recursive: true });
+        }
+        const timestamp = Date.now();
+        fs.writeFileSync(path.join(debugDir, `ocr-text-${timestamp}.txt`), text);
+        fs.writeFileSync(path.join(debugDir, `preprocessed-${timestamp}.png`), preprocessedBuffer);
+      }
+      
+      console.log(`   OCR extracted ${text.length} characters`);
       return text;
     } catch (error: any) {
       console.error(`❌ OCR error: ${error.message}`);
@@ -211,6 +240,8 @@ export class IntermartScraper {
   parseProducts(text: string, pageNumber: number): ScrapedProduct[] {
     const products: ScrapedProduct[] = [];
     const lines = text.split('\n').filter(line => line.trim());
+
+    console.log(`   Page ${pageNumber}: Analyzing ${lines.length} text lines`);
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -232,12 +263,13 @@ export class IntermartScraper {
         
         // Filter out garbled product names (too short or too many special chars)
         if (!this.isValidProductName(productName)) {
+          console.log(`   ⚠️  Rejected invalid name: "${productName}" (price: Rs ${price})`);
           continue;
         }
         
         if (productName && price > 0) {
           // Extract discount percentage
-          const discount = this.extractDiscount(context);
+          let discount = this.extractDiscount(context);
           
           // Extract original price (strikethrough)
           const originalPrice = this.extractOriginalPrice(context, price);
@@ -248,7 +280,12 @@ export class IntermartScraper {
             continue;
           }
           
-          products.push({
+          // Calculate discount if we have both prices but no discount found in text
+          if (originalPrice && !discount) {
+            discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+          }
+          
+          const product = {
             name: productName,
             price: price,
             originalPrice: originalPrice,
@@ -258,7 +295,16 @@ export class IntermartScraper {
             category: this.extractCategory(productName),
             image_url: undefined,
             description: line.substring(0, 200),
-          });
+            dealTitle: 'Intermart Weekly Specials',
+          };
+          
+          products.push(product);
+          
+          if (originalPrice) {
+            console.log(`   ✓ ${productName.substring(0, 40)}... - Rs ${price} (was Rs ${originalPrice}, ${discount}% off)`);
+          } else {
+            console.log(`   ✓ ${productName.substring(0, 40)}... - Rs ${price}`);
+          }
         }
       }
     }
@@ -482,6 +528,55 @@ export class IntermartScraper {
   }
 
   /**
+   * Save brochure to database
+   */
+  private async saveBrochure(
+    supermarketId: number,
+    brochureUrl: string,
+    startDate: Date,
+    endDate: Date,
+    uploadedBy: number = 1
+  ): Promise<number | null> {
+    try {
+      // Check if brochure already exists
+      const { data: existing } = await supabase
+        .from('pamphlets')
+        .select('pamphlet_id')
+        .eq('file_url', brochureUrl)
+        .eq('supermarket_id', supermarketId)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`📖 Brochure already exists (ID: ${existing.pamphlet_id})`);
+        return existing.pamphlet_id;
+      }
+
+      // Insert new brochure
+      const { data, error } = await supabase
+        .from('pamphlets')
+        .insert({
+          supermarket_id: supermarketId,
+          uploaded_by: uploadedBy,
+          uploaded_date: new Date().toISOString().split('T')[0],
+          file_url: brochureUrl,
+          valid_from: startDate.toISOString().split('T')[0],
+          valid_to: endDate.toISOString().split('T')[0],
+          status: 'processed',
+        })
+        .select('pamphlet_id')
+        .single();
+
+      if (error) throw error;
+
+      console.log(`✅ Saved brochure (ID: ${data.pamphlet_id})`);
+      return data.pamphlet_id;
+    } catch (error: any) {
+      console.error(`❌ Error saving brochure: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Scrape and save to database
    */
   async scrapeAndSave(
@@ -494,13 +589,16 @@ export class IntermartScraper {
 
     try {
       let images: Buffer[] = [];
+      let brochureUrl: string;
 
       if (pdfUrl) {
         // Use provided URL
         if (pdfUrl.startsWith('IMAGES:')) {
           const imageUrls = JSON.parse(pdfUrl.substring(7));
           images = await this.downloadImages(imageUrls);
+          brochureUrl = imageUrls[0]; // Use first image URL as reference
         } else {
+          brochureUrl = pdfUrl;
           const pdfPath = await this.downloadPDF(pdfUrl);
           images = await this.convertPDFToImages(pdfPath);
           fs.unlinkSync(pdfPath);
@@ -509,16 +607,21 @@ export class IntermartScraper {
         // Auto-detect
         const brochureInfo = await this.findLatestBrochureURL();
         if (!brochureInfo) throw new Error('No brochure found');
+        brochureUrl = brochureInfo;
 
         if (brochureInfo.startsWith('IMAGES:')) {
           const imageUrls = JSON.parse(brochureInfo.substring(7));
           images = await this.downloadImages(imageUrls);
+          brochureUrl = imageUrls[0]; // Use first image URL as reference
         } else {
           const pdfPath = await this.downloadPDF(brochureInfo);
           images = await this.convertPDFToImages(pdfPath);
           fs.unlinkSync(pdfPath);
         }
       }
+
+      // Save brochure to pamphlets table
+      const pamphlet_id = await this.saveBrochure(supermarket_id, brochureUrl, startDate, endDate);
 
       // Process images
       const allProducts: ScrapedProduct[] = [];
@@ -545,9 +648,10 @@ export class IntermartScraper {
         retailer_id,
         supermarket_id,
         allProducts,
-        'web_scraping',
+        'pamphlet',
         startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
+        endDate.toISOString().split('T')[0],
+        pamphlet_id || undefined
       );
 
       console.log(`✅ Successfully saved to database!`);

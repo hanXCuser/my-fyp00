@@ -1,15 +1,11 @@
-import { JumboScraper } from './jumbo/jumbo-scraper';
-import { LoloHyperScraper } from './lolo-hyper/lolo-hyper-scraper';
 import { SuperUScraper } from './super-u/super-u-scraper';
 import { ScraperResult } from './types';
 import { WinnersScraper } from './winners/winners-scraper';
 
-export type RetailerName = 'lolohyper' | 'jumbo' | 'winners' | 'superu' | 'all';
+export type RetailerName = 'winners' | 'superu' | 'all';
 
 export class MauritiusScraper {
   private scrapers = {
-    lolohyper: new LoloHyperScraper(),
-    jumbo: new JumboScraper(),
     winners: new WinnersScraper(),
     superu: new SuperUScraper(),
   };
