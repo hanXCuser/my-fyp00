@@ -220,6 +220,9 @@ export default function HomeScreen() {
                 styles.categoryText,
                 selectedCategory === category && styles.categoryTextActive
               ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
             >
               {category}
             </Text>
@@ -504,12 +507,14 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
       gap: 8,
     },
     categoryChip: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingVertical: 10,
       borderRadius: 20,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.cardBorder,
+      flexShrink: 0,
+      alignSelf: 'flex-start',
     },
     categoryChipActive: {
       backgroundColor: colors.primary,
