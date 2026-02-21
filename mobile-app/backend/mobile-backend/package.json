@@ -7,21 +7,37 @@
     "dev": "vercel dev",
     "build": "tsc",
     "deploy": "vercel --prod",
-    "scrape:all": "cd scraping && npm run scrape:all",
-    "scrape:intermarkt": "cd scraping && npm run scrape:intermarkt",
-    "scrape:superu": "cd scraping && npm run scrape:superu",
-    "scrape:winners": "cd scraping && npm run scrape:winners",
+    "scrape:all": "npx ts-node --transpile-only scraping/run-all-scrapers.ts",
+    "scrape:intermarkt": "npx ts-node --transpile-only scraping/run-intermarkt.ts",
+    "scrape:superu": "npx ts-node --transpile-only scraping/run-superu.ts",
+    "scrape:winners": "npx ts-node --transpile-only scraping/run-winners.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["mobile", "api", "deals", "recommendations"],
+  "keywords": [
+    "mobile",
+    "api",
+    "deals",
+    "recommendations"
+  ],
   "author": "PriceFind",
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "@vercel/node": "^3.0.12"
+    "@vercel/node": "^5.6.4",
+    "axios": "^1.13.5",
+    "cheerio": "^1.2.0",
+    "dotenv": "^17.3.1",
+    "pdf-parse": "^2.4.5",
+    "pdf2pic": "^3.2.0",
+    "puppeteer": "^24.37.3",
+    "sharp": "^0.34.5",
+    "tesseract.js": "^7.0.0",
+    "translate-google-api": "^1.0.4"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
+    "@types/cheerio": "^0.22.35",
+    "@types/node": "^20.19.33",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
 }
