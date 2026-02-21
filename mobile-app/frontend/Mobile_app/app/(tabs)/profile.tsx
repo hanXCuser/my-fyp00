@@ -36,16 +36,43 @@ export default function ProfileSettings() {
         console.log('Fetching user data for:', user.id);
         console.log('User metadata:', user.user_metadata);
         
-        const { data, error } = await supabase
+        // Try fetching by auth_user_id
+        let { data, error } = await supabase
           .from('users')
           .select('*')
           .eq('auth_user_id', user.id)
-          .single();
+          .maybeSingle();
+
+        // If not found by auth_user_id, try by email
+        if (!data && !error && user.email) {
+          console.log('No record found by auth_user_id, trying by email...');
+          const result = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', user.email)
+            .maybeSingle();
+          
+          data = result.data;
+          error = result.error;
+          
+          // Update the auth_user_id if found by email
+          if (data) {
+            console.log('Found user by email, updating auth_user_id...');
+            await supabase
+              .from('users')
+              .update({ auth_user_id: user.id })
+              .eq('email', user.email);
+          }
+        }
 
         if (error) {
           console.error('Error fetching user data:', error);
+        } else if (!data) {
+          console.log('No user record found, will use metadata only');
         } else {
           console.log('Fetched user data from database:', data);
+          console.log('📍 Location field in database:', data?.location);
+          console.log('📍 Address in user_metadata:', user.user_metadata?.address);
           setUserData(data);
         }
       }
@@ -107,7 +134,22 @@ export default function ProfileSettings() {
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Location</Text>
           <TextInput 
-            value={userData?.location || user?.user_metadata?.address || 'Not set'} 
+            value={(() => {
+              // Try user_metadata.address first
+              const metadataAddress = user?.user_metadata?.address;
+              if (metadataAddress && !metadataAddress.includes('@')) {
+                return metadataAddress;
+              }
+              
+              // Try userData.location from database
+              const dbLocation = userData?.location;
+              if (dbLocation && !dbLocation.includes('@')) {
+                return dbLocation;
+              }
+              
+              // Default fallback
+              return 'Not set';
+            })()}
             style={styles.input}
             placeholder="Enter location"
             editable={false}
