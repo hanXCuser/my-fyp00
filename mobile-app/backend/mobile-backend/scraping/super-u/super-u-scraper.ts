@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio';
 import { DatabaseService } from '../database';
 import { ScrapedProduct, ScraperResult } from '../types';
 import { ScraperUtils } from '../utils';
+import { supabase } from '../supabase-node';
 const translate = require('translate-google-api');
 
 export class SuperUScraper {
@@ -131,7 +132,7 @@ export class SuperUScraper {
     const priceSelectors = ['.price', '.prix', '.product-price', '.special-price', '.now', '.amount'];
     const originalSelectors = ['.old-price', '.prix-barre', 'del', '.was-price', '.original-price'];
 
-    let containers: cheerio.Cheerio<cheerio.Element> | null = null;
+    let containers: cheerio.Cheerio<any> | null = null;
     for (const sel of containerCandidates) {
       const found = $(sel);
       if (found && found.length > 0) {
@@ -270,11 +271,62 @@ export class SuperUScraper {
           // Category - not available on Super U listing pages
           const category: string | undefined = undefined;
 
-          products.push({ name, price, originalPrice, discount, image_url, brand, category, unit, url: pageUrl });
+          products.push({ name, price, originalPrice, discount, image_url, brand, category, unit, url: pageUrl, dealTitle: 'Super U Promotions' });
         } catch (err: any) {
           // Continue parsing others
         }
       });
+    }
+  }
+
+  /**
+   * Save brochure/promotion page to database
+   */
+  private async saveBrochure(
+    supermarketId: number,
+    startDate: string,
+    endDate: string,
+    uploadedBy: number = 1
+  ): Promise<number | null> {
+    try {
+      const promotionsUrl = `${this.website}/en/promotions`;
+      
+      // Check if brochure already exists for this period
+      const { data: existing } = await supabase
+        .from('pamphlets')
+        .select('pamphlet_id')
+        .eq('file_url', promotionsUrl)
+        .eq('supermarket_id', supermarketId)
+        .eq('valid_from', startDate)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`📖 Promotion period already exists (ID: ${existing.pamphlet_id})`);
+        return existing.pamphlet_id;
+      }
+
+      // Insert new brochure/promotion entry
+      const { data, error } = await supabase
+        .from('pamphlets')
+        .insert({
+          supermarket_id: supermarketId,
+          uploaded_by: uploadedBy,
+          uploaded_date: new Date().toISOString().split('T')[0],
+          file_url: promotionsUrl,
+          valid_from: startDate,
+          valid_to: endDate,
+          status: 'processed',
+        })
+        .select('pamphlet_id')
+        .single();
+
+      if (error) throw error;
+
+      console.log(`✅ Saved promotion period (ID: ${data.pamphlet_id})`);
+      return data.pamphlet_id;
+    } catch (error: any) {
+      console.error(`❌ Error saving promotion period: ${error.message}`);
+      return null;
     }
   }
 
@@ -284,7 +336,19 @@ export class SuperUScraper {
 
     try {
       const retailer_id = await this.db.getOrCreateRetailer(this.retailer, this.website, 'Super U Mauritius');
-      const { productsCreated, dealsCreated } = await this.db.saveScrapedData(retailer_id, supermarket_id, result.products, 'web_scraping', startDate, endDate);
+      
+      // Save pamphlet/promotion period
+      const pamphlet_id = await this.saveBrochure(supermarket_id, startDate, endDate);
+      
+      const { productsCreated, dealsCreated } = await this.db.saveScrapedData(
+        retailer_id, 
+        supermarket_id, 
+        result.products, 
+        'pamphlet', 
+        startDate, 
+        endDate,
+        pamphlet_id || undefined
+      );
       return { success: true, productsCreated, dealsCreated, errors: [] };
     } catch (error: any) {
       return { success: false, productsCreated: 0, dealsCreated: 0, errors: [error.message] };
