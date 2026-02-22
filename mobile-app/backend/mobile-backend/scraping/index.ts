@@ -5,12 +5,6 @@ import { IntermartScraper } from './intermarkt/intermarkt-scraper';
 import { MUCataloguesScraper } from './mu-catalogues/mu-catalogues-scraper';
 import { archiveCurrentPrices } from './archive-and-rescrape';
 
-<<<<<<< Updated upstream
-export type RetailerName = 'winners' | 'superu' | 'all';
-
-export class MauritiusScraper {
-  private scrapers = {
-=======
 export type RetailerName = 'winners' | 'superu' | 'intermart' | 'mu-catalogues' | 'all';
 type ScraperKey = Exclude<RetailerName, 'all'>;
 
@@ -26,7 +20,6 @@ type ScraperAdapter = {
 
 export class MauritiusScraper {
   private scrapers: Record<ScraperKey, ScraperAdapter> = {
->>>>>>> Stashed changes
     winners: new WinnersScraper(),
     superu: new SuperUScraper(),
     intermart: (() => {
@@ -114,7 +107,7 @@ export class MauritiusScraper {
    */
   private async scrapeAllRetailers(): Promise<ScraperResult[]> {
     const promises = Object.values(this.scrapers).map((scraper) =>
-      scraper.scrapeDeals().catch((error) => ({
+      scraper.scrapeDeals().catch((error: any) => ({
         success: false,
         products: [],
         deals: [],
