@@ -1,12 +1,18 @@
-import { StyleSheet, Text, View, FlatList, Image, Pressable, Alert, ActivityIndicator, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 import { useFavourites } from '@/contexts/FavouritesContext';
 import { useList } from '@/contexts/ListContext';
+<<<<<<< Updated upstream
 import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+=======
+import { useTheme } from '@/contexts/ThemeContext';
+>>>>>>> Stashed changes
 
 type RecommendedDeal = {
   product_id: number;
@@ -25,8 +31,7 @@ type RecommendedDeal = {
   valid_to: string;
 };
 
-// Use your computer's network IP so mobile devices can access it
-// Get your IP from: ipconfig (Windows) or ifconfig (Mac/Linux)
+// Use your computer's network IP so mobile devices on the same LAN can access it
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://v0-mobile-price-comparison-e2tgvy3eu.vercel.app';
 
 export default function ForYouScreen() {
@@ -35,82 +40,100 @@ export default function ForYouScreen() {
   const { addToList, removeFromList, isInList } = useList();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme];
+<<<<<<< Updated upstream
   const styles = useMemo(() => createStyles(colors, colorScheme), [colors, colorScheme]);
   const onAccent = colorScheme === 'dark' ? '#04121b' : '#fff';
   const onSuccess = colorScheme === 'dark' ? '#03180f' : '#fff';
   
+=======
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+>>>>>>> Stashed changes
   const [recommendations, setRecommendations] = useState<RecommendedDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadLocation();
-    loadRecommendations();
-  }, [user]);
-
-  const loadLocation = async () => {
+  const requestLocation = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
-        setLocation({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-        });
+      if (status !== 'granted') {
+        setLocation(null);
+        return;
       }
+
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
     } catch (err) {
       console.log('Location error:', err);
+      setLocation(null);
     }
-  };
+  }, []);
 
-  const loadRecommendations = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setError(null);
-      const params = new URLSearchParams({
-        user_id: user.id,
-        limit: '20',
-      });
-
-      if (location) {
-        params.append('latitude', location.latitude.toString());
-        params.append('longitude', location.longitude.toString());
-        params.append('max_distance', '10');
+  const loadRecommendations = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!user) {
+        setRecommendations([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
       }
 
-      console.log('Fetching recommendations from:', `${API_BASE}/api/recommendations/for-you?${params}`);
-      const response = await fetch(`${API_BASE}/api/recommendations/for-you?${params}`);
-      
-      console.log('Response status:', response.status);
-      const responseText = await response.text();
-      console.log('Response body:', responseText);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load recommendations: ${response.status} - ${responseText}`);
+      if (!opts?.silent) {
+        setLoading(true);
       }
 
-      const data = JSON.parse(responseText);
-      setRecommendations(data.recommendations || []);
-    } catch (err: any) {
-      console.error('Error loading recommendations:', err);
-      console.error('Full error:', JSON.stringify(err, null, 2));
-      setError(err.message);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+      try {
+        setError(null);
+        const params = new URLSearchParams({
+          user_id: user.id,
+          limit: '20',
+        });
+
+        if (location) {
+          params.append('latitude', location.latitude.toString());
+          params.append('longitude', location.longitude.toString());
+          params.append('max_distance', '10');
+        }
+
+        const url = `${API_BASE}/api/recommendations/for-you?${params.toString()}`;
+        const response = await fetch(url);
+        const bodyText = await response.text();
+
+        if (!response.ok) {
+          throw new Error(`Failed to load recommendations (${response.status}): ${bodyText}`);
+        }
+
+        const data = JSON.parse(bodyText);
+        setRecommendations(data.recommendations || []);
+      } catch (err: any) {
+        console.error('Error loading recommendations:', err);
+        setError(err.message || 'Failed to load recommendations');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [location, user]
+  );
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
+
+  useEffect(() => {
+    loadRecommendations();
+  }, [loadRecommendations]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadRecommendations();
+    loadRecommendations({ silent: true });
   };
+
+  const formatPrice = (value: number) => `Rs ${value.toFixed(2)}`;
+  const formatDistance = (value?: number) =>
+    typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(1)} km` : null;
 
   const renderRecommendation = ({ item }: { item: RecommendedDeal }) => {
     const isFav = isFavourite(item.product_id);
@@ -122,10 +145,12 @@ export default function ForYouScreen() {
           <View style={styles.cardHeader}>
             <View style={styles.titleRow}>
               <View style={styles.titleContainer}>
-                <Text style={styles.cardTitle} numberOfLines={2}>{item.product_name}</Text>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {item.product_name}
+                </Text>
                 <Text style={styles.categoryText}>{item.category}</Text>
               </View>
-              <Pressable 
+              <Pressable
                 onPress={() => {
                   if (isFav) {
                     removeFromFavourites(item.product_id);
@@ -139,44 +164,47 @@ export default function ForYouScreen() {
                 }}
                 hitSlop={10}
               >
+<<<<<<< Updated upstream
                 <Ionicons 
                   name={isFav ? "heart" : "heart-outline"} 
                   size={24} 
                   color={isFav ? colors.danger : colors.icon} 
+=======
+                <Ionicons
+                  name={isFav ? 'heart' : 'heart-outline'}
+                  size={24}
+                  color={isFav ? '#ff3366' : colors.textSecondary}
+>>>>>>> Stashed changes
                 />
               </Pressable>
             </View>
           </View>
 
-          {/* Reason Badge */}
           <View style={styles.reasonBadge}>
             <Ionicons name="sparkles" size={14} color={colors.success} />
             <Text style={styles.reasonText}>{item.reason}</Text>
           </View>
 
-          {/* Price and Discount */}
           <View style={styles.priceContainer}>
             <View style={styles.priceRow}>
-              <Text style={styles.originalPrice}>Rs {item.original_price.toFixed(2)}</Text>
-              <Text style={styles.price}>Rs {item.discounted_price.toFixed(2)}</Text>
+              <Text style={styles.originalPrice}>{formatPrice(item.original_price)}</Text>
+              <Text style={styles.price}>{formatPrice(item.discounted_price)}</Text>
             </View>
             <View style={styles.discountBadge}>
               <Text style={styles.discount}>{item.discount_percentage}% OFF</Text>
             </View>
           </View>
 
-          {/* Location Info */}
           <View style={styles.locationRow}>
             <Ionicons name="location" size={16} color={colors.icon} />
             <Text style={styles.locationText}>
               {item.supermarket_name} · {item.retailer}
             </Text>
-            {item.distance && (
-              <Text style={styles.distanceText}>· {item.distance.toFixed(1)}km</Text>
+            {formatDistance(item.distance) && (
+              <Text style={styles.distanceText}>· {formatDistance(item.distance)}</Text>
             )}
           </View>
 
-          {/* Actions */}
           <View style={styles.actionRow}>
             <Pressable
               style={[styles.actionButton, styles.primaryButton, inList && styles.actionButtonActive]}
@@ -188,10 +216,11 @@ export default function ForYouScreen() {
                     product_id: item.product_id,
                     name: item.product_name,
                     category: item.category,
-                  });
+                  }).catch((e) => console.log('Add to list error', e));
                 }
               }}
             >
+<<<<<<< Updated upstream
               <Ionicons 
                 name={inList ? "checkmark-circle" : "add-circle-outline"} 
                 size={20} 
@@ -204,6 +233,27 @@ export default function ForYouScreen() {
             
             <Pressable style={[styles.actionButton, styles.secondaryButton]}>
               <Ionicons name="information-circle-outline" size={20} color={colors.text} />
+=======
+              <Ionicons
+                name={inList ? 'checkmark-circle' : 'add-circle-outline'}
+                size={20}
+                color="#fff"
+              />
+              <Text style={styles.actionButtonText}>{inList ? 'In List' : 'Add to List'}</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.actionButton, styles.secondaryButton]}
+              onPress={() => {
+                const distanceText = formatDistance(item.distance);
+                Alert.alert(
+                  item.product_name,
+                  `${item.reason}\n${item.discount_percentage}% off at ${item.supermarket_name}${distanceText ? `\n${distanceText} away` : ''}\nValid until ${item.valid_to}`
+                );
+              }}
+            >
+              <Ionicons name="information-circle-outline" size={20} color={colors.textPrimary} />
+>>>>>>> Stashed changes
               <Text style={styles.secondaryButtonText}>Details</Text>
             </Pressable>
           </View>
@@ -219,7 +269,7 @@ export default function ForYouScreen() {
           <Ionicons name="person-outline" size={64} color={colors.icon} />
           <Text style={styles.emptyTitle}>Sign in to see recommendations</Text>
           <Text style={styles.emptySubtitle}>
-            Get personalized deals based on your favorites and location
+            Get personalized deals based on your favourites and location
           </Text>
         </View>
       </View>
@@ -231,8 +281,13 @@ export default function ForYouScreen() {
       <View style={styles.container}>
         <Text style={styles.heading}>For You</Text>
         <View style={styles.loadingContainer}>
+<<<<<<< Updated upstream
           <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Finding best deals for you...</Text>
+=======
+          <ActivityIndicator size="large" color={colors.accentSecondary} />
+          <Text style={styles.loadingText}>Finding the best deals for you...</Text>
+>>>>>>> Stashed changes
         </View>
       </View>
     );
@@ -246,7 +301,7 @@ export default function ForYouScreen() {
           <Ionicons name="alert-circle-outline" size={64} color={colors.danger} />
           <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
           <Text style={styles.errorSubtitle}>{error}</Text>
-          <Pressable style={styles.retryButton} onPress={loadRecommendations}>
+          <Pressable style={styles.retryButton} onPress={() => loadRecommendations()}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </Pressable>
         </View>
@@ -258,17 +313,15 @@ export default function ForYouScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.heading}>For You</Text>
-        <Text style={styles.subheading}>
-          {recommendations.length} personalized deals
-        </Text>
+        <Text style={styles.subheading}>{recommendations.length} personalized deals</Text>
       </View>
-      
+
       {recommendations.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="star-outline" size={64} color={colors.icon} />
           <Text style={styles.emptyTitle}>No recommendations yet</Text>
           <Text style={styles.emptySubtitle}>
-            Add products to your favorites or shopping list to get personalized deals
+            Add products to your favourites or shopping list to get personalized deals
           </Text>
         </View>
       ) : (
@@ -278,8 +331,8 @@ export default function ForYouScreen() {
           renderItem={renderRecommendation}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
+            <RefreshControl
+              refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor={colors.accent}
             />
@@ -291,6 +344,7 @@ export default function ForYouScreen() {
   );
 }
 
+<<<<<<< Updated upstream
 const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark') => {
   const onAccent = colorScheme === 'dark' ? colors.background : colors.card;
   const onSuccess = colorScheme === 'dark' ? '#03180f' : '#fff';
@@ -301,6 +355,13 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     container: {
       flex: 1,
       backgroundColor: colors.background,
+=======
+const createStyles = (colors: typeof Colors.light) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.screenBackground,
+>>>>>>> Stashed changes
       paddingHorizontal: 16,
       paddingTop: 48,
     },
@@ -311,21 +372,37 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
       fontSize: 28,
       fontWeight: '700',
       marginBottom: 4,
+<<<<<<< Updated upstream
       color: colors.text,
     },
     subheading: {
       fontSize: 14,
       color: colors.textMuted,
+=======
+      color: colors.textPrimary,
+    },
+    subheading: {
+      fontSize: 14,
+      color: colors.textSecondary,
+>>>>>>> Stashed changes
     },
     listContent: {
       paddingBottom: 32,
     },
     card: {
+<<<<<<< Updated upstream
       backgroundColor: colors.card,
       borderRadius: 16,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: colors.cardBorder,
+=======
+      backgroundColor: colors.cardBackground,
+      borderRadius: 16,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+>>>>>>> Stashed changes
       marginBottom: 16,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -351,17 +428,29 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     cardTitle: {
       fontSize: 18,
       fontWeight: '600',
+<<<<<<< Updated upstream
       color: colors.text,
+=======
+      color: colors.textPrimary,
+>>>>>>> Stashed changes
       marginBottom: 4,
     },
     categoryText: {
       fontSize: 13,
+<<<<<<< Updated upstream
       color: colors.textMuted,
+=======
+      color: colors.textSecondary,
+>>>>>>> Stashed changes
     },
     reasonBadge: {
       flexDirection: 'row',
       alignItems: 'center',
+<<<<<<< Updated upstream
       backgroundColor: reasonBackground,
+=======
+      backgroundColor: `${colors.accentSecondary}20`,
+>>>>>>> Stashed changes
       paddingHorizontal: 10,
       paddingVertical: 6,
       borderRadius: 8,
@@ -370,7 +459,11 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     },
     reasonText: {
       fontSize: 12,
+<<<<<<< Updated upstream
       color: colors.success,
+=======
+      color: colors.accentSecondary,
+>>>>>>> Stashed changes
       fontWeight: '600',
       marginLeft: 4,
     },
@@ -391,17 +484,28 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     price: {
       fontSize: 24,
       fontWeight: '700',
+<<<<<<< Updated upstream
       color: colors.text,
     },
     discountBadge: {
       backgroundColor: colors.danger,
+=======
+      color: colors.textPrimary,
+    },
+    discountBadge: {
+      backgroundColor: '#ff3366',
+>>>>>>> Stashed changes
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 6,
       alignSelf: 'flex-start',
     },
     discount: {
+<<<<<<< Updated upstream
       color: colors.card,
+=======
+      color: '#fff',
+>>>>>>> Stashed changes
       fontWeight: '700',
       fontSize: 12,
     },
@@ -412,13 +516,21 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     },
     locationText: {
       fontSize: 13,
+<<<<<<< Updated upstream
       color: colors.textMuted,
+=======
+      color: colors.textSecondary,
+>>>>>>> Stashed changes
       marginLeft: 4,
       flex: 1,
     },
     distanceText: {
       fontSize: 13,
+<<<<<<< Updated upstream
       color: colors.accent,
+=======
+      color: colors.accentSecondary,
+>>>>>>> Stashed changes
       fontWeight: '600',
     },
     actionRow: {
@@ -436,6 +548,7 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
       gap: 6,
     },
     primaryButton: {
+<<<<<<< Updated upstream
       backgroundColor: colors.accent,
     },
     actionButtonActive: {
@@ -454,6 +567,23 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     },
     secondaryButtonText: {
       color: colors.text,
+=======
+      backgroundColor: colors.textPrimary,
+    },
+    actionButtonActive: {
+      backgroundColor: colors.accentSecondary,
+    },
+    secondaryButton: {
+      backgroundColor: colors.surface,
+    },
+    actionButtonText: {
+      color: '#fff',
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    secondaryButtonText: {
+      color: colors.textPrimary,
+>>>>>>> Stashed changes
       fontWeight: '600',
       fontSize: 14,
     },
@@ -466,7 +596,11 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     loadingText: {
       marginTop: 16,
       fontSize: 14,
+<<<<<<< Updated upstream
       color: colors.textMuted,
+=======
+      color: colors.textSecondary,
+>>>>>>> Stashed changes
     },
     emptyState: {
       flex: 1,
@@ -478,13 +612,21 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     emptyTitle: {
       fontSize: 20,
       fontWeight: '600',
+<<<<<<< Updated upstream
       color: colors.text,
+=======
+      color: colors.textPrimary,
+>>>>>>> Stashed changes
       marginTop: 16,
       marginBottom: 8,
     },
     emptySubtitle: {
       fontSize: 14,
+<<<<<<< Updated upstream
       color: colors.textMuted,
+=======
+      color: colors.textSecondary,
+>>>>>>> Stashed changes
       textAlign: 'center',
       lineHeight: 20,
     },
@@ -498,26 +640,45 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     errorTitle: {
       fontSize: 20,
       fontWeight: '600',
+<<<<<<< Updated upstream
       color: colors.text,
+=======
+      color: colors.textPrimary,
+>>>>>>> Stashed changes
       marginTop: 16,
       marginBottom: 8,
     },
     errorSubtitle: {
       fontSize: 14,
+<<<<<<< Updated upstream
       color: colors.textMuted,
+=======
+      color: colors.textSecondary,
+>>>>>>> Stashed changes
       textAlign: 'center',
       marginBottom: 24,
     },
     retryButton: {
+<<<<<<< Updated upstream
       backgroundColor: colors.success,
+=======
+      backgroundColor: colors.accentSecondary,
+>>>>>>> Stashed changes
       paddingVertical: 12,
       paddingHorizontal: 24,
       borderRadius: 10,
     },
     retryButtonText: {
+<<<<<<< Updated upstream
       color: onSuccess,
+=======
+      color: '#fff',
+>>>>>>> Stashed changes
       fontWeight: '600',
       fontSize: 14,
     },
   });
+<<<<<<< Updated upstream
 };
+=======
+>>>>>>> Stashed changes

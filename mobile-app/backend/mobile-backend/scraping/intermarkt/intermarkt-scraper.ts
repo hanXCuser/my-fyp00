@@ -80,7 +80,7 @@ export class IntermartScraper {
    * Download PDF from URL
    */
   async downloadPDF(pdfUrl: string): Promise<string> {
-    console.log(`📥 Downloading PDF from: ${pdfUrl}`);
+    console.log(`Downloading PDF from: ${pdfUrl}`);
     
     const fileName = `intermarkt-brochure-${Date.now()}.pdf`;
     const filePath = path.join(this.tempDir, fileName);
@@ -94,7 +94,7 @@ export class IntermartScraper {
       });
 
       fs.writeFileSync(filePath, response.data);
-      console.log(`✅ PDF downloaded to: ${filePath}`);
+      console.log(`PDF downloaded to: ${filePath}`);
       return filePath;
 
     } catch (error: any) {
@@ -106,7 +106,7 @@ export class IntermartScraper {
    * Download catalog images directly
    */
   async downloadImages(imageUrls: string[]): Promise<Buffer[]> {
-    console.log(`📥 Downloading ${imageUrls.length} catalog images...`);
+    console.log(`Downloading ${imageUrls.length} catalog images...`);
     const images: Buffer[] = [];
 
     for (let i = 0; i < imageUrls.length; i++) {
@@ -119,10 +119,10 @@ export class IntermartScraper {
         });
 
         images.push(Buffer.from(response.data));
-        console.log(`   ✓ Downloaded image ${i + 1}/${imageUrls.length}`);
+        console.log(`Downloaded image ${i + 1}/${imageUrls.length}`);
 
       } catch (error) {
-        console.error(`   ✗ Failed to download image ${i + 1}`);
+        console.error(`Failed to download image ${i + 1}`);
       }
     }
 
@@ -133,7 +133,7 @@ export class IntermartScraper {
    * Convert PDF to images using Puppeteer
    */
   async convertPDFToImages(pdfPath: string): Promise<Buffer[]> {
-    console.log('📄 Converting PDF to images...');
+    console.log('Converting PDF to images...');
     
     try {
       const browser = await puppeteer.launch({ 
@@ -150,7 +150,7 @@ export class IntermartScraper {
         throw new Error('PDF file is empty');
       }
       
-      console.log(`   PDF size: ${(pdfBuffer.length / 1024).toFixed(2)} KB`);
+      console.log(`PDF size: ${(pdfBuffer.length / 1024).toFixed(2)} KB`);
       
       // Convert to data URL
       const base64PDF = pdfBuffer.toString('base64');
@@ -178,11 +178,11 @@ export class IntermartScraper {
         throw new Error('Screenshot is empty');
       }
       
-      console.log(`✅ Captured screenshot: ${(screenshot.length / 1024).toFixed(2)} KB`);
+      console.log(`Captured screenshot: ${(screenshot.length / 1024).toFixed(2)} KB`);
       return [screenshot];
       
     } catch (error: any) {
-      console.error(`❌ Error converting PDF: ${error.message}`);
+      console.error(`Error converting PDF: ${error.message}`);
       return [];
     }
   }
@@ -229,7 +229,7 @@ export class IntermartScraper {
       console.log(`   OCR extracted ${text.length} characters`);
       return text;
     } catch (error: any) {
-      console.error(`❌ OCR error: ${error.message}`);
+      console.error(`OCR error: ${error.message}`);
       return '';
     }
   }
@@ -472,14 +472,14 @@ export class IntermartScraper {
    * Main scraping function
    */
   async scrapeDeals(): Promise<ScrapedProduct[]> {
-    console.log('\n🛒 Starting Intermarkt scraper...\n');
+    console.log('\nStarting Intermarkt scraper...\n');
 
     try {
       // Find brochure URL
       const brochureInfo = await this.findLatestBrochureURL();
       
       if (!brochureInfo) {
-        console.log('❌ No brochure found');
+        console.log('No brochure found');
         return [];
       }
 
@@ -498,31 +498,31 @@ export class IntermartScraper {
         
         // Clean up PDF
         fs.unlinkSync(pdfPath);
-        console.log('🧹 Cleaned up temporary PDF file');
+        console.log('Cleaned up temporary PDF file');
       }
 
       if (images.length === 0) {
-        console.log('❌ No images to process');
+        console.log('No images to process');
         return [];
       }
 
       // Process each image with OCR
-      console.log(`\n🔤 Performing OCR on ${images.length} image(s)...`);
+      console.log(`\nPerforming OCR on ${images.length} image(s)...`);
       const allProducts: ScrapedProduct[] = [];
 
       for (let i = 0; i < images.length; i++) {
-        console.log(`   Processing image ${i + 1}/${images.length}...`);
+        console.log(`Processing image ${i + 1}/${images.length}...`);
         const text = await this.performOCR(images[i]);
         const products = this.parseProducts(text, i + 1);
         allProducts.push(...products);
-        console.log(`   ✓ Extracted ${products.length} products`);
+        console.log(`Extracted ${products.length} products`);
       }
 
-      console.log(`\n✅ Total products extracted: ${allProducts.length}\n`);
+      console.log(`\nTotal products extracted: ${allProducts.length}\n`);
       return allProducts;
 
     } catch (error: any) {
-      console.error(`\n❌ Scraping failed: ${error.message}\n`);
+      console.error(`\nScraping failed: ${error.message}\n`);
       return [];
     }
   }
@@ -585,7 +585,7 @@ export class IntermartScraper {
     endDate: Date,
     pdfUrl?: string
   ): Promise<{ productsCreated: number; dealsCreated: number }> {
-    console.log('\n🛒 Starting Intermarkt scraper with database save...\n');
+    console.log('\nStarting Intermarkt scraper with database save...\n');
 
     try {
       let images: Buffer[] = [];
@@ -626,16 +626,16 @@ export class IntermartScraper {
       // Process images
       const allProducts: ScrapedProduct[] = [];
       for (let i = 0; i < images.length; i++) {
-        console.log(`   Processing image ${i + 1}/${images.length}...`);
+        console.log(`Processing image ${i + 1}/${images.length}...`);
         const text = await this.performOCR(images[i]);
         const products = this.parseProducts(text, i + 1);
         allProducts.push(...products);
       }
 
-      console.log(`✅ Extracted ${allProducts.length} products`);
+      console.log(`Extracted ${allProducts.length} products`);
 
       // Save to database
-      console.log('💾 Saving to database...');
+      console.log('Saving to database...');
       
       // Get retailer ID
       const retailer_id = await this.db.getOrCreateRetailer(
@@ -654,14 +654,14 @@ export class IntermartScraper {
         pamphlet_id || undefined
       );
 
-      console.log(`✅ Successfully saved to database!`);
-      console.log(`   Products: ${productsCreated}`);
-      console.log(`   Deals: ${dealsCreated}\n`);
+      console.log(`Successfully saved to database!`);
+      console.log(`Products: ${productsCreated}`);
+      console.log(`Deals: ${dealsCreated}\n`);
 
       return { productsCreated, dealsCreated };
 
     } catch (error: any) {
-      console.error(`❌ Error: ${error.message}\n`);
+      console.error(`Error: ${error.message}\n`);
       throw error;
     }
   }

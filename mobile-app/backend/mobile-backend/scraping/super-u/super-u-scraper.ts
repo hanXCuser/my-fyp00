@@ -28,7 +28,7 @@ export class SuperUScraper {
     const errors: string[] = [];
     const products: ScrapedProduct[] = [];
 
-    console.log(`🛒 Scraping ${this.retailer}...`);
+    console.log(`Scraping ${this.retailer}...`);
 
     const possibleUrls = ['/en', '/en/promotions', '/en/specials', '/en/offers', '/', '/promotions', '/specials', '/offers'];
 
@@ -39,10 +39,10 @@ export class SuperUScraper {
       try {
         html = await this.utils.fetchPage(p);
         successUrl = p;
-        console.log(`✅ Found Super U page at: ${p}`);
+        console.log(`Found Super U page at: ${p}`);
         break;
       } catch (err: any) {
-        console.log(`❌ URL not found: ${p}`);
+        console.log(`URL not found: ${p}`);
       }
     }
 
@@ -52,10 +52,7 @@ export class SuperUScraper {
       return { success: false, products, deals: [], errors, retailer: this.retailer, scrapedAt: new Date() };
     }
 
-    // Scrape first page
     await this.scrapePage(html, successUrl, products);
-
-    // Scrape additional pages with pagination
     let pageNum = 1;
     let hasMorePages = true;
     const maxPages = 20; // Safety limit to prevent infinite loops
@@ -63,7 +60,7 @@ export class SuperUScraper {
     while (hasMorePages && pageNum <= maxPages) {
       try {
         const pageUrl = `/en/node?page=${pageNum}`;
-        console.log(`📄 Fetching page ${pageNum}...`);
+        console.log(`Fetching page ${pageNum}...`);
         const pageHtml = await this.utils.fetchPage(pageUrl);
         
         if (!pageHtml) {
@@ -76,31 +73,29 @@ export class SuperUScraper {
         const newProductsCount = products.length - initialCount;
 
         if (newProductsCount === 0) {
-          console.log(`✅ No more products found on page ${pageNum}`);
+          console.log(`No more products found on page ${pageNum}`);
           hasMorePages = false;
         } else {
-          console.log(`✅ Found ${newProductsCount} products on page ${pageNum}`);
+          console.log(`Found ${newProductsCount} products on page ${pageNum}`);
           pageNum++;
         }
       } catch (err: any) {
-        console.log(`❌ Failed to fetch page ${pageNum}: ${err.message}`);
+        console.log(`Failed to fetch page ${pageNum}: ${err.message}`);
         hasMorePages = false;
       }
     }
 
     if (products.length === 0) {
-      const msg = `No products found. Check selectors at ${this.website}${successUrl}`;
-      return { success: false, products, deals: [], errors: [msg], retailer: this.retailer, scrapedAt: new Date() };
+      return { success: false, products, deals: [], errors: ['No products found.'], retailer: this.retailer, scrapedAt: new Date() };
     }
-
-    console.log(`✅ Scraped ${products.length} products from ${this.retailer} (across ${pageNum} pages)`);
+    console.log(`Scraped ${products.length} products from ${this.retailer} (across ${pageNum} pages)`);
 
     // Deduplicate products by name and price
     const uniqueProducts = this.deduplicateProducts(products);
-    console.log(`🔄 Deduplicated to ${uniqueProducts.length} unique products`);
+    console.log(`Deduplicated to ${uniqueProducts.length} unique products`);
 
     // Translate product names from French to English
-    console.log('🌍 Translating product names to English...');
+    console.log('Translating product names to English...');
     await this.translateProductNames(uniqueProducts);
 
     return { success: true, products: uniqueProducts, deals: [], errors: [], retailer: this.retailer, scrapedAt: new Date() };
@@ -111,16 +106,13 @@ export class SuperUScraper {
    */
   private deduplicateProducts(products: ScrapedProduct[]): ScrapedProduct[] {
     const seen = new Map<string, ScrapedProduct>();
-    
     for (const product of products) {
       // Create a unique key based on name and price
       const key = `${product.name.toLowerCase().trim()}_${product.price}`;
-      
       if (!seen.has(key)) {
         seen.set(key, product);
       }
     }
-    
     return Array.from(seen.values());
   }
 
@@ -156,9 +148,13 @@ export class SuperUScraper {
     }
 
     if (!containers) {
-      console.log('⚠️ No product containers found');
+      console.log('No product containers found');
     } else {
+<<<<<<< Updated upstream
       containers.each((i: number, el) => {
+=======
+      containers.each((i: number, el: any) => {
+>>>>>>> Stashed changes
         try {
           const $el = $(el);
 

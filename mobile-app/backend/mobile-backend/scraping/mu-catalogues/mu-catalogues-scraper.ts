@@ -1,7 +1,13 @@
 import * as cheerio from 'cheerio';
 import { DatabaseService } from '../database';
-import { ScrapedProduct } from '../types';
+import { ScrapedProduct, ScraperResult } from '../types';
 import { ScraperUtils } from '../utils';
+
+const CATALOGUE_RETAILERS = [
+  { slug: 'intermart', name: 'Intermarkt', website: 'https://intermartmauritius.com' },
+  { slug: 'winners', name: 'Winners', website: 'https://www.winners.mu' },
+  { slug: 'super-u', name: 'Super U', website: 'https://www.superu.mu' },
+];
 
 interface CatalogueInfo {
   title: string;
@@ -26,6 +32,40 @@ export class MUCataloguesScraper {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
     });
+  }
+
+  /**
+   * Standard interface used by MauritiusScraper: scrape all supported retailers via mu-catalogues.
+   * Returns a single aggregated ScraperResult so scrape-all can save it like other scrapers.
+   */
+  async scrapeDeals(): Promise<ScraperResult> {
+    const allProducts: ScrapedProduct[] = [];
+    const errors: string[] = [];
+
+    for (const { slug } of CATALOGUE_RETAILERS) {
+      const catalogue = await this.getLatestCatalogue(slug);
+      if (!catalogue) {
+        errors.push(`No catalogue for ${slug}`);
+        continue;
+      }
+
+      const products = await this.scrapeProducts(catalogue.url);
+      if (products.length === 0) {
+        errors.push(`No products found for ${slug}`);
+        continue;
+      }
+
+      allProducts.push(...products);
+    }
+
+    return {
+      success: allProducts.length > 0,
+      products: allProducts,
+      deals: [],
+      errors,
+      retailer: 'mu-catalogues',
+      scrapedAt: new Date(),
+    };
   }
 
   /**
@@ -89,13 +129,7 @@ export class MUCataloguesScraper {
    * Get retailer display name from slug
    */
   private getRetailerName(slug: string): string {
-    const names: { [key: string]: string } = {
-      'intermart': 'Intermarkt',
-      'winners': 'Winners',
-      'lolo-hyper': 'LOLO Hyper',
-      'super-u': 'Super U',
-    };
-    return names[slug] || slug;
+    return CATALOGUE_RETAILERS.find(r => r.slug === slug)?.name || slug;
   }
 
   /**

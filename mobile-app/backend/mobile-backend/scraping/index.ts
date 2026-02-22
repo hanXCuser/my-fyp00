@@ -1,13 +1,60 @@
 import { SuperUScraper } from './super-u/super-u-scraper';
 import { ScraperResult } from './types';
 import { WinnersScraper } from './winners/winners-scraper';
+import { IntermartScraper } from './intermarkt/intermarkt-scraper';
+import { MUCataloguesScraper } from './mu-catalogues/mu-catalogues-scraper';
+import { archiveCurrentPrices } from './archive-and-rescrape';
 
+<<<<<<< Updated upstream
 export type RetailerName = 'winners' | 'superu' | 'all';
 
 export class MauritiusScraper {
   private scrapers = {
+=======
+export type RetailerName = 'winners' | 'superu' | 'intermart' | 'mu-catalogues' | 'all';
+type ScraperKey = Exclude<RetailerName, 'all'>;
+
+type ScraperAdapter = {
+  scrapeDeals: (...args: any[]) => Promise<ScraperResult>;
+  scrapeAndSave?: (...args: any[]) => Promise<{
+    success: boolean;
+    productsCreated: number;
+    dealsCreated: number;
+    errors: string[];
+  }>;
+};
+
+export class MauritiusScraper {
+  private scrapers: Record<ScraperKey, ScraperAdapter> = {
+>>>>>>> Stashed changes
     winners: new WinnersScraper(),
     superu: new SuperUScraper(),
+    intermart: (() => {
+      const scraper = new IntermartScraper();
+      return {
+        scrapeDeals: async () => {
+          const products = await scraper.scrapeDeals();
+          return {
+            success: products.length > 0,
+            products,
+            deals: [],
+            errors: [],
+            retailer: 'intermart',
+            scrapedAt: new Date(),
+          } satisfies ScraperResult;
+        },
+        scrapeAndSave: async (supermarket_id: number, startDate: Date, endDate: Date, pdfUrl?: string) => {
+          const result = await scraper.scrapeAndSave(supermarket_id, startDate, endDate, pdfUrl);
+          return {
+            success: true,
+            productsCreated: result.productsCreated,
+            dealsCreated: result.dealsCreated,
+            errors: [],
+          };
+        },
+      } satisfies ScraperAdapter;
+    })(),
+    'mu-catalogues': new MUCataloguesScraper(),
   };
 
   /**
@@ -53,6 +100,10 @@ export class MauritiusScraper {
     const scraper = this.scrapers[retailer];
     if (!scraper) {
       throw new Error(`Unknown retailer: ${retailer}`);
+    }
+
+    if (!scraper.scrapeAndSave) {
+      throw new Error(`Scraper ${retailer} does not support save flow`);
     }
 
     return await scraper.scrapeAndSave(supermarket_id, startDate, endDate);
@@ -106,6 +157,22 @@ export class MauritiusScraper {
       errors,
     };
   }
+}
+
+/**
+ * Convenience orchestrator: archive current prices, then scrape all retailers in parallel.
+ */
+export async function archiveAndScrapeAll(): Promise<{
+  archived: number;
+  results: ScraperResult[];
+}> {
+  console.log('Archiving current prices before scraping all retailers...');
+  const archived = await archiveCurrentPrices();
+
+  const scraper = new MauritiusScraper();
+  const results = await scraper.scrapeDeals('all');
+
+  return { archived, results };
 }
 
 // Example usage:

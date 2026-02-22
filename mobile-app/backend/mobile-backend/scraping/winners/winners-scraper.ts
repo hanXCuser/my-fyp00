@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { BrochureOCRProcessor } from '../brochure-ocr';
+import { BrochureOCRProcessor, ExtractedProduct } from '../brochure-ocr';
 import { DatabaseService } from '../database';
 import { supabase } from '../supabase-node';
 import { ScrapedProduct, ScraperResult } from '../types';
@@ -36,7 +36,7 @@ export class WinnersScraper {
     const brochures: BrochureInfo[] = [];
 
     try {
-      console.log('📖 Fetching Winners brochures...');
+      console.log('Fetching Winners brochures...');
       const html = await this.utils.fetchPage('/ebrochure');
       const $ = cheerio.load(html);
 
@@ -58,9 +58,9 @@ export class WinnersScraper {
         }
       });
 
-      console.log(`✅ Found ${brochures.length} brochure(s)`);
+      console.log(`Found ${brochures.length} brochure(s)`);
     } catch (error: any) {
-      console.error('❌ Error fetching brochures:', error.message);
+      console.error('Error fetching brochures:', error.message);
     }
 
     return brochures;
@@ -80,8 +80,9 @@ export class WinnersScraper {
    * Get default valid_to date (2 weeks from now)
    */
   private getDefaultValidTo(): string {
+    const days = parseInt(process.env.WINNERS_BROCHURE_VALID_DAYS || '14', 10);
     const date = new Date();
-    date.setDate(date.getDate() + 14);
+    date.setDate(date.getDate() + days);
     return date.toISOString().split('T')[0];
   }
 
@@ -103,7 +104,7 @@ export class WinnersScraper {
         .maybeSingle();
 
       if (existing) {
-        console.log(`📖 Brochure already exists: ${brochure.title}`);
+        console.log(`Brochure already exists: ${brochure.title}`);
         return existing.pamphlet_id;
       }
 
@@ -124,10 +125,10 @@ export class WinnersScraper {
 
       if (error) throw error;
 
-      console.log(`✅ Saved brochure: ${brochure.title}`);
+      console.log(`Saved brochure: ${brochure.title}`);
       return data.pamphlet_id;
     } catch (error: any) {
-      console.error(`❌ Error saving brochure: ${error.message}`);
+      console.error(`Error saving brochure: ${error.message}`);
       return null;
     }
   }
@@ -162,19 +163,24 @@ export class WinnersScraper {
   /**
    * Attempt to extract deals from Paperturn brochure using OCR
    */
+<<<<<<< Updated upstream
   private async extractDealsFromBrochure(brochureUrl: string, brochureTitle: string): Promise<ScrapedProduct[]> {
     console.log('🔍 Extracting deals using OCR...');
+=======
+  private async extractDealsFromBrochure(brochureUrl: string): Promise<ScrapedProduct[]> {
+    console.log('Extracting deals using OCR...');
+>>>>>>> Stashed changes
     
     try {
       const ocrProcessor = new BrochureOCRProcessor();
       const products = await ocrProcessor.processBrochure(brochureUrl, brochureTitle, 5);
       
-      console.log(`✅ OCR extracted ${products.length} products`);
-      return products;
+      console.log(`OCR extracted ${products.length} products`);
+      return products.map(this.convertToScrapedProduct.bind(this));
       
     } catch (error: any) {
-      console.error('❌ OCR extraction error:', error.message);
-      console.log('💡 Falling back to basic extraction...');
+      console.error('OCR extraction error:', error.message);
+      console.log('Falling back to basic extraction...');
       
       // Fallback to old method
       return this.extractDealsBasic(brochureUrl);
@@ -188,7 +194,7 @@ export class WinnersScraper {
     const products: ScrapedProduct[] = [];
 
     try {
-      console.log('🔍 Attempting to extract deals from brochure...');
+      console.log('Attempting to extract deals from brochure...');
       const html = await this.utils.fetchPage(brochureUrl);
       const $ = cheerio.load(html);
 
@@ -228,12 +234,12 @@ export class WinnersScraper {
       }
 
       if (products.length === 0) {
-        console.log('⚠️  Paperturn brochures use canvas/images - manual extraction or OCR needed');
-        console.log('💡 Recommendation: Manually add featured deals or implement OCR solution');
+        console.log('Paperturn brochures use canvas/images - manual extraction or OCR needed');
+        console.log('Recommendation: Manually add featured deals or implement OCR solution');
       }
 
     } catch (error: any) {
-      console.error('❌ Error extracting from brochure:', error.message);
+      console.error('Error extracting from brochure:', error.message);
     }
 
     return products;
@@ -247,7 +253,7 @@ export class WinnersScraper {
     const products: ScrapedProduct[] = [];
 
     try {
-      console.log(`🛒 Scraping ${this.retailer}...`);
+      console.log(`Scraping ${this.retailer}...`);
 
       // Try homepage first (where Promos section is), then other URLs
       const possibleUrls = [
@@ -266,10 +272,10 @@ export class WinnersScraper {
         try {
           html = await this.utils.fetchPage(url);
           successUrl = url;
-          console.log(`✅ Found Winners page at: ${url}`);
+          console.log(`Found Winners page at: ${url}`);
           break;
         } catch (error: any) {
-          console.log(`❌ URL not found: ${url}`);
+          console.log(`URL not found: ${url}`);
           continue;
         }
       }
@@ -299,8 +305,12 @@ export class WinnersScraper {
         category: '.category',
       };
 
+<<<<<<< Updated upstream
       console.log(`🔍 Searching for products...`);
       console.log(`📍 Trying selectors on: ${successUrl}`);
+=======
+      console.log(`Searching for products...`);
+>>>>>>> Stashed changes
 
       $(selectors.container).each((i, el) => {
         try {
@@ -414,7 +424,7 @@ export class WinnersScraper {
         }
       });
 
-      console.log(`✅ Scraped ${products.length} products from ${this.retailer}`);
+      console.log(`Scraped ${products.length} products from ${this.retailer}`);
 
       if (products.length === 0) {
         errors.push(
@@ -450,7 +460,7 @@ export class WinnersScraper {
 
     try {
       // Step 1: Scrape and save brochures
-      console.log('\n📖 Step 1: Scraping brochures...');
+      console.log('\nStep 1: Scraping brochures...');
       const brochures = await this.scrapeBrochures();
       
       for (const brochure of brochures) {
@@ -459,8 +469,13 @@ export class WinnersScraper {
           brochuresSaved++;
           
           // Step 2: Try to extract deals from brochure
+<<<<<<< Updated upstream
           console.log(`\n🔍 Step 2: Extracting deals from ${brochure.title}...`);
           const extractedProducts = await this.extractDealsFromBrochure(brochure.url, brochure.title);
+=======
+          console.log(`\nStep 2: Extracting deals from ${brochure.title}...`);
+          const extractedProducts = await this.extractDealsFromBrochure(brochure.url);
+>>>>>>> Stashed changes
           
           if (extractedProducts.length > 0) {
             const retailer_id = await this.db.getOrCreateRetailer(
@@ -486,7 +501,7 @@ export class WinnersScraper {
       }
 
       // Step 3: Try regular web scraping (promos page)
-      console.log('\n🛒 Step 3: Attempting regular web scraping...');
+      console.log('\nStep 3: Attempting regular web scraping...');
       const webResult = await this.scrapeDeals();
       
       if (webResult.success && webResult.products.length > 0) {
@@ -511,8 +526,8 @@ export class WinnersScraper {
         errors.push(...webResult.errors);
       }
 
-      console.log('\n✅ Winners scraping completed!');
-      console.log(`📊 Summary:`);
+      console.log('\nWinners scraping completed!');
+      console.log('Summary:');
       console.log(`   - Brochures saved: ${brochuresSaved}`);
       console.log(`   - Products created: ${productsCreated}`);
       console.log(`   - Deals created: ${dealsCreated}`);
