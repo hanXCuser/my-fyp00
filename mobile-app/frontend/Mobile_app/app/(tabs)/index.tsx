@@ -56,13 +56,17 @@ export default function HomeScreen() {
   const { colorScheme } = useTheme();
   const colors = Colors[colorScheme];
   const styles = useMemo(() => createStyles(colors, colorScheme), [colors, colorScheme]);
+  const normalizedSearchQuery = searchQuery.trim();
 
   const fetchDeals = useCallback(async () => {
     setIsLoading(true);
 
     try {
+      const isSearching = normalizedSearchQuery.length > 0;
+      const searchLimit = isSearching ? 300 : 20;
+
       const [cheapest, retailers] = await Promise.all([
-        fetchCheapestProducts(20, selectedCategory),
+        fetchCheapestProducts(searchLimit, selectedCategory, normalizedSearchQuery),
         fetchDealsByRetailer()
       ]);
       
@@ -74,10 +78,15 @@ export default function HomeScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCategory]);
+  }, [selectedCategory, normalizedSearchQuery]);
 
   useEffect(() => {
-    fetchDeals();
+    const debounceMs = normalizedSearchQuery ? 300 : 0;
+    const timeoutId = setTimeout(() => {
+      fetchDeals();
+    }, debounceMs);
+
+    return () => clearTimeout(timeoutId);
   }, [fetchDeals]);
 
   useEffect(() => {
@@ -312,7 +321,12 @@ export default function HomeScreen() {
                   <Text style={styles.productPrice}>Rs {product.cheapest_price.toFixed(0)}</Text>
                   {product.savings && product.savings > 0 && (
                     <View style={styles.savingsLabel}>
-                      <Text style={styles.savingsText}>
+                      <Text
+                        style={styles.savingsText}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.75}
+                      >
                         Save Rs {product.savings.toFixed(0)}
                       </Text>
                     </View>
@@ -657,14 +671,17 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     },
     priceRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
+      justifyContent: 'space-between',
       marginBottom: 6,
     },
     productPrice: {
       fontSize: 20,
       fontWeight: '700',
       color: colors.text,
+      marginBottom: 0,
+      flexShrink: 1,
+      marginRight: 6,
     },
     originalPrice: {
       fontSize: 11,
@@ -675,11 +692,14 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 6,
+      maxWidth: '55%',
+      flexShrink: 1,
     },
     savingsText: {
       fontSize: 10,
       fontWeight: '600',
       color: '#fff',
+      flexShrink: 1,
     },
     storeRow: {
       flexDirection: 'row',

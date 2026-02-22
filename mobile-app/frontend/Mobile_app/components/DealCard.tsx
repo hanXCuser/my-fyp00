@@ -2,6 +2,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { DealWithProduct } from '@/utils/deals-grouping';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Colors } from '@/constants/theme';
+import { useEffect, useMemo, useState } from 'react';
 
 interface DealCardProps {
   deal: DealWithProduct;
@@ -20,9 +23,20 @@ export default function DealCard({
   isInList = false,
   isFavourite = false,
 }: DealCardProps) {
-  const product = deal.products;
-  const productName = deal.title || product?.name || 'Unknown Product';
-  const hasImage = product?.image_url && product.image_url.trim().length > 0;
+  const { colorScheme } = useTheme();
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const product = useMemo(() => getProductRecord(deal.products), [deal.products]);
+  const productName = product?.name || deal.title || 'Unknown Product';
+  const imageUri = useMemo(() => normalizeImageUrl(product?.image_url), [product?.image_url]);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setImageLoadFailed(false);
+  }, [imageUri]);
+
+  const hasImage = Boolean(imageUri) && !imageLoadFailed;
 
   // Calculate discount percentage if not provided
   const discountPercent = deal.discount || 
@@ -33,10 +47,11 @@ export default function DealCard({
       {/* Image */}
       {hasImage ? (
         <Image
-          source={{ uri: product!.image_url }}
+          source={{ uri: imageUri! }}
           style={styles.image}
           contentFit="cover"
           transition={200}
+          onError={() => setImageLoadFailed(true)}
         />
       ) : (
         <View style={styles.placeholderContainer}>
@@ -66,7 +81,7 @@ export default function DealCard({
           <Ionicons
             name={isFavourite ? 'heart' : 'heart-outline'}
             size={20}
-            color={isFavourite ? '#ff3366' : '#fff'}
+            color={isFavourite ? colors.danger : colors.background}
           />
         </Pressable>
       )}
@@ -88,11 +103,10 @@ export default function DealCard({
         {/* Price Section */}
         <View style={styles.priceContainer}>
           <View style={styles.priceRow}>
-            <Text style={styles.currency}>R</Text>
-            <Text style={styles.price}>{deal.deal_price.toFixed(2)}</Text>
+            <Text style={styles.price}>Rs {deal.deal_price.toFixed(0)}</Text>
           </View>
           {deal.original_price && (
-            <Text style={styles.originalPrice}>R{deal.original_price.toFixed(2)}</Text>
+            <Text style={styles.originalPrice}>Rs {deal.original_price.toFixed(0)}</Text>
           )}
         </View>
 
@@ -129,15 +143,15 @@ export default function DealCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   card: {
     width: 170,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 12,
     marginRight: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.cardBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -147,31 +161,31 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 140,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surface,
   },
   placeholderContainer: {
     width: '100%',
     height: 140,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
   placeholderText: {
     fontSize: 32,
     fontWeight: '600',
-    color: '#9ca3af',
+    color: colors.placeholder,
   },
   discountBadge: {
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.danger,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   discountText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -179,7 +193,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: colorWithAlpha(colors.text, 0.25),
     borderRadius: 16,
     padding: 6,
   },
@@ -189,13 +203,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111',
+    color: colors.text,
     marginBottom: 4,
     lineHeight: 18,
   },
   brand: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.textMuted,
     marginBottom: 6,
   },
   priceContainer: {
@@ -206,24 +220,18 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     marginBottom: 2,
   },
-  currency: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#10b981',
-    marginRight: 2,
-  },
   price: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#10b981',
+    color: colors.success,
   },
   originalPrice: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: colors.textMuted,
     textDecorationLine: 'line-through',
   },
   retailerBadge: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surface,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -233,13 +241,13 @@ const styles = StyleSheet.create({
   retailerText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#6b7280',
+    color: colors.textMuted,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3b82f6',
+    backgroundColor: colors.info,
     paddingVertical: 4,
     paddingHorizontal: 6,
     borderRadius: 5,
@@ -248,14 +256,72 @@ const styles = StyleSheet.create({
     maxWidth: 90,
   },
   addButtonActive: {
-    backgroundColor: '#d1fae5',
+    backgroundColor: colors.success + '22',
   },
   addButtonText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.background,
   },
   addButtonTextActive: {
-    color: '#10b981',
+    color: colors.success,
   },
 });
+
+function colorWithAlpha(color: string, alpha: number) {
+  if (color.startsWith('#')) {
+    const hex = color.slice(1);
+    const fullHex = hex.length === 3
+      ? hex.split('').map((char) => char + char).join('')
+      : hex;
+
+    if (fullHex.length === 6) {
+      const r = parseInt(fullHex.slice(0, 2), 16);
+      const g = parseInt(fullHex.slice(2, 4), 16);
+      const b = parseInt(fullHex.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+  }
+
+  return color;
+}
+
+function getProductRecord(products: DealWithProduct['products']) {
+  if (!products) return undefined;
+  if (Array.isArray(products)) {
+    return products[0];
+  }
+  return products;
+}
+
+function normalizeImageUrl(rawUrl?: string) {
+  if (!rawUrl) return undefined;
+
+  const cleaned = rawUrl.trim();
+  if (!cleaned) return undefined;
+
+  if (/^https?:\/\//i.test(cleaned)) {
+    return cleaned;
+  }
+
+  if (cleaned.startsWith('//')) {
+    return `https:${cleaned}`;
+  }
+
+  const supabaseBase = (process.env.EXPO_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
+  if (!supabaseBase) return cleaned;
+
+  if (cleaned.startsWith('/storage/')) {
+    return `${supabaseBase}${cleaned}`;
+  }
+
+  if (cleaned.startsWith('storage/')) {
+    return `${supabaseBase}/${cleaned}`;
+  }
+
+  if (cleaned.startsWith('/')) {
+    return `${supabaseBase}${cleaned}`;
+  }
+
+  return `${supabaseBase}/storage/v1/object/public/${cleaned}`;
+}

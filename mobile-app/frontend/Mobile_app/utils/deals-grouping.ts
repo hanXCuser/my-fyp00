@@ -210,9 +210,20 @@ export interface RetailerDeals {
  * @param category Optional category filter
  * @returns Array of products with their cheapest prices
  */
-export async function fetchCheapestProducts(limit: number = 20, category?: string): Promise<CheapestProduct[]> {
+export async function fetchCheapestProducts(
+  limit: number = 20,
+  category?: string,
+  searchQuery?: string
+): Promise<CheapestProduct[]> {
   const today = new Date().toISOString().split('T')[0];
-  console.log('🔍 Fetching cheapest products. Today:', today, 'Category:', category || 'All');
+  console.log(
+    '🔍 Fetching cheapest products. Today:',
+    today,
+    'Category:',
+    category || 'All',
+    'Search:',
+    searchQuery || '(none)'
+  );
   
   let query = supabase
     .from('deals')
@@ -262,6 +273,24 @@ export async function fetchCheapestProducts(limit: number = 20, category?: strin
     filteredDeals = deals.filter((deal: any) => 
       deal.products?.category?.toLowerCase() === category.toLowerCase()
     );
+  }
+
+  // Filter by search query if specified
+  const normalizedSearch = searchQuery?.trim().toLowerCase();
+  if (normalizedSearch) {
+    filteredDeals = filteredDeals.filter((deal: any) => {
+      const name = deal.products?.name?.toLowerCase() || '';
+      const brand = deal.products?.brand?.toLowerCase() || '';
+      const categoryName = deal.products?.category?.toLowerCase() || '';
+      const title = deal.title?.toLowerCase() || '';
+
+      return (
+        name.includes(normalizedSearch) ||
+        brand.includes(normalizedSearch) ||
+        categoryName.includes(normalizedSearch) ||
+        title.includes(normalizedSearch)
+      );
+    });
   }
 
   // Group by product_id and find cheapest price for each
@@ -386,7 +415,6 @@ export interface Supermarket {
 export interface Retailer {
   retailer_id: number;
   name: string;
-  supermarket_id?: number;
 }
 
 export interface ProductDealComparison extends DealWithProduct {
@@ -416,8 +444,7 @@ export async function fetchAllDealsForProduct(productId: number): Promise<Produc
       ),
       retailers (
         retailer_id,
-        name,
-        supermarket_id
+        name
       )
     `)
     .eq('product_id', productId)

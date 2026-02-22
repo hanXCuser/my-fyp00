@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,25 @@ export default function ProductComparisonModal({
   const [deals, setDeals] = useState<ProductDealComparison[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
 
+  const comparedDeals = useMemo(() => {
+    if (deals.length === 0) return [];
+
+    const cheapestPerSupermarket = new Map<number | string, ProductDealComparison>();
+
+    deals.forEach((deal) => {
+      const comparisonKey = deal.retailer_id;
+      const existing = cheapestPerSupermarket.get(comparisonKey);
+
+      if (!existing || deal.deal_price < existing.deal_price) {
+        cheapestPerSupermarket.set(comparisonKey, deal);
+      }
+    });
+
+    return Array.from(cheapestPerSupermarket.values())
+      .sort((a, b) => a.deal_price - b.deal_price)
+      .slice(0, 3);
+  }, [deals]);
+
   useEffect(() => {
     if (visible && productId) {
       loadProductDeals();
@@ -49,10 +68,16 @@ export default function ProductComparisonModal({
       const data = await fetchAllDealsForProduct(productId);
       setDeals(data);
       if (data.length > 0 && data[0].products) {
-        setProduct(data[0].products);
+        const firstProduct = Array.isArray(data[0].products)
+          ? data[0].products[0]
+          : data[0].products;
+        setProduct(firstProduct ?? null);
+      } else {
+        setProduct(null);
       }
     } catch (error) {
       console.error('Error loading product deals:', error);
+      setProduct(null);
     } finally {
       setLoading(false);
     }
@@ -87,7 +112,11 @@ export default function ProductComparisonModal({
     return supermarketName.charAt(0).toUpperCase();
   };
 
-  const cheapestPrice = deals.length > 0 ? deals[0].deal_price : 0;
+  const cheapestPrice = comparedDeals.length > 0 ? comparedDeals[0].deal_price : 0;
+  const highestComparedPrice = comparedDeals.length > 0
+    ? comparedDeals[comparedDeals.length - 1].deal_price
+    : 0;
+  const savingsVsHighest = Math.max(0, highestComparedPrice - cheapestPrice);
 
   return (
     <Modal
@@ -136,12 +165,17 @@ export default function ProductComparisonModal({
                       {product.unit}
                     </Text>
                   )}
+                  {product.description && (
+                    <Text style={[styles.productDescription, { color: colors.textMuted }]}>
+                      {product.description}
+                    </Text>
+                  )}
                 </View>
               </View>
             )}
 
             {/* Best Price Section */}
-            {deals.length > 0 && (
+            {comparedDeals.length > 0 && (
               <View style={styles.bestPriceSection}>
                 <View style={styles.bestPriceHeader}>
                   <Ionicons name="checkmark-circle" size={20} color="#10b981" />
@@ -153,32 +187,37 @@ export default function ProductComparisonModal({
                     <View
                       style={[
                         styles.storeBadge,
-                        { backgroundColor: getStoreBadgeColor(deals[0].retailers?.name || '') }
+                        { backgroundColor: getStoreBadgeColor(comparedDeals[0].retailers?.name || '') }
                       ]}
                     >
                       <Text style={styles.storeBadgeText}>
-                        {getStoreBadgeInitial(deals[0].retailers?.name || '')}
+                        {getStoreBadgeInitial(comparedDeals[0].retailers?.name || '')}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.storeName}>
-                    {deals[0].retailers?.name || 'Unknown Store'}
+                    {comparedDeals[0].retailers?.name || 'Unknown Store'}
                   </Text>
+                  {savingsVsHighest > 0 && (
+                    <Text style={styles.savingsText}>
+                      You save {formatPrice(savingsVsHighest)} vs highest price
+                    </Text>
+                  )}
                 </View>
               </View>
             )}
 
             {/* Store Prices List */}
-            {deals.length > 0 && (
+            {comparedDeals.length > 0 && (
               <View style={styles.storesSection}>
                 <View style={styles.storesSectionHeader}>
                   <Ionicons name="storefront-outline" size={20} color={colors.textMuted} />
                   <Text style={[styles.storesSectionTitle, { color: colors.text }]}>
-                    Store Prices
+                    Store Prices (3 Supermarkets)
                   </Text>
                 </View>
 
-                {deals.map((deal, index) => (
+                {comparedDeals.map((deal, index) => (
                   <View
                     key={deal.deal_id}
                     style={[
@@ -226,7 +265,7 @@ export default function ProductComparisonModal({
               </View>
             )}
 
-            {deals.length === 0 && !loading && (
+            {comparedDeals.length === 0 && !loading && (
               <View style={styles.emptyState}>
                 <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>
@@ -236,7 +275,7 @@ export default function ProductComparisonModal({
             )}
 
             {/* Price Alert Button */}
-            {deals.length > 0 && (
+            {comparedDeals.length > 0 && (
               <TouchableOpacity
                 style={[styles.alertButton, { backgroundColor: colors.text }]}
                 onPress={() => {
@@ -312,6 +351,13 @@ const styles = StyleSheet.create({
   productUnit: {
     fontSize: 16,
   },
+  productDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: 10,
+    paddingHorizontal: 8,
+  },
   bestPriceSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -360,6 +406,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#047857',
     fontWeight: '500',
+  },
+  savingsText: {
+    fontSize: 13,
+    color: '#065f46',
+    fontWeight: '600',
+    marginTop: 6,
   },
   storesSection: {
     paddingHorizontal: 20,
