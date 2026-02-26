@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
-import { DatabaseService } from '../database';
-import { ScrapedProduct, ScraperResult } from '../types';
-import { ScraperUtils } from '../utils';
+import { DatabaseService } from '../database.js';
+import { ScrapedProduct, ScraperResult } from '../types.js';
+import { ScraperUtils } from '../utils.js';
 const translate = require('translate-google-api');
 
 export class SuperUScraper {
@@ -131,7 +131,7 @@ export class SuperUScraper {
     const priceSelectors = ['.price', '.prix', '.product-price', '.special-price', '.now', '.amount'];
     const originalSelectors = ['.old-price', '.prix-barre', 'del', '.was-price', '.original-price'];
 
-    let containers: cheerio.Cheerio | null = null;
+    let containers: cheerio.Cheerio<any> | null = null;
     for (const sel of containerCandidates) {
       const found = $(sel);
       if (found && found.length > 0) {
@@ -157,7 +157,7 @@ export class SuperUScraper {
     if (!containers) {
       console.log('⚠️ No product containers found');
     } else {
-      containers.each((i, el) => {
+  containers.each((i: number, el: any) => {
         try {
           const $el = $(el);
 

@@ -64,6 +64,7 @@ export interface ScrapedProduct {
   originalPrice?: number;
   discount?: number;
   url?: string;
+  dealTitle?: string;
 }
 
 export interface ScraperResult {

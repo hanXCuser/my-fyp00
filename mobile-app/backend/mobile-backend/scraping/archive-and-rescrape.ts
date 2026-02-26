@@ -1,4 +1,4 @@
-import { supabase } from './supabase-node';
+import { supabase } from './supabase-node.js';
 
 /**
  * Archive current deal prices to price_history table before re-scraping

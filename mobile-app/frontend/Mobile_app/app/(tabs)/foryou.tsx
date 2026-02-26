@@ -289,201 +289,202 @@ export default function ForYouScreen() {
   );
 }
 
-const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.screenBackground,
-    paddingHorizontal: 16,
-    paddingTop: 48,
-  },
-  header: {
-    marginBottom: 16,
-  },
-  heading: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 4,
-    color: colors.textPrimary,
-  },
-  subheading: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  listContent: {
-    paddingBottom: 32,
-  },
-  card: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.borderColor,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardContent: {
-    padding: 16,
-  },
-  cardHeader: {
-    marginBottom: 12,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  titleContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  categoryText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  reasonBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.accentSecondary + '20',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-  },
-  reasonText: {
-    fontSize: 12,
-    color: colors.accentSecondary,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  priceContainer: {
-    marginBottom: 12,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  originalPrice: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textDecorationLine: 'line-through',
-    marginRight: 8,
-  },
-  price: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  discountBadge: {
-    backgroundColor: '#ff3366',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  discount: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  locationText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginLeft: 4,
-    flex: 1,
-  },
-  distanceText: {
-    fontSize: 13,
-    color: colors.accentSecondary,
-    fontWeight: '600',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    gap: 6,
-  },
-  primaryButton: {
-    backgroundColor: colors.textPrimary,
-  },
-  actionButtonActive: {
-    backgroundColor: colors.accentSecondary,
-  },
-  secondaryButton: {
-    backgroundColor: colors.surface,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  secondaryButtonText: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 100,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 100,
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  errorState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 100,
-    paddingHorizontal: 32,
-  },
+const createStyles = (colors: typeof Colors.light) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.screenBackground,
+      paddingHorizontal: 16,
+      paddingTop: 48,
+    },
+    header: {
+      marginBottom: 16,
+    },
+    heading: {
+  fontSize: 28,
+  fontWeight: '700',
+  marginBottom: 4,
+  color: colors.textPrimary,
+},
+subheading: {
+  fontSize: 14,
+  color: colors.textSecondary,
+},
+    listContent: {
+      paddingBottom: 32,
+    },
+card: {
+  backgroundColor: colors.cardBackground,
+  borderRadius: 16,
+  overflow: 'hidden',
+  borderWidth: 1,
+  borderColor: colors.borderColor,
+  marginBottom: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 4,
+  elevation: 2,
+},
+    cardContent: {
+      padding: 16,
+    },
+    cardHeader: {
+      marginBottom: 12,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    titleContainer: {
+      flex: 1,
+      marginRight: 12,
+    },
+cardTitle: {
+  fontSize: 18,
+  fontWeight: '600',
+  color: colors.textPrimary,
+  marginBottom: 4,
+},
+categoryText: {
+  fontSize: 13,
+  color: colors.textSecondary,
+},
+reasonBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: `${colors.accentSecondary}20`,
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+  borderRadius: 8,
+  alignSelf: 'flex-start',
+  marginBottom: 12,
+},
+reasonText: {
+  fontSize: 12,
+  color: colors.accentSecondary,
+  fontWeight: '600',
+  marginLeft: 4,
+},
+    priceContainer: {
+      marginBottom: 12,
+    },
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    originalPrice: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textDecorationLine: 'line-through',
+      marginRight: 8,
+    },
+price: {
+  fontSize: 24,
+  fontWeight: '700',
+  color: colors.textPrimary,
+},
+discountBadge: {
+  backgroundColor: '#ff3366',
+  paddingHorizontal: 10,
+  paddingVertical: 4,
+  borderRadius: 6,
+  alignSelf: 'flex-start',
+},
+discount: {
+  color: '#fff',
+  fontWeight: '700',
+  fontSize: 12,
+},
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+locationText: {
+  fontSize: 13,
+  color: colors.textSecondary,
+  marginLeft: 4,
+  flex: 1,
+},
+distanceText: {
+  fontSize: 13,
+  color: colors.accentSecondary,
+  fontWeight: '600',
+},
+    actionRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    actionButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      gap: 6,
+    },
+primaryButton: {
+  backgroundColor: colors.textPrimary,
+},
+actionButtonActive: {
+  backgroundColor: colors.accentSecondary,
+},
+secondaryButton: {
+  backgroundColor: colors.surface,
+},
+actionButtonText: {
+  color: '#fff',
+  fontWeight: '600',
+  fontSize: 14,
+},
+secondaryButtonText: {
+  color: colors.textPrimary,
+  fontWeight: '600',
+  fontSize: 14,
+},
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingBottom: 100,
+    },
+loadingText: {
+  marginTop: 16,
+  fontSize: 14,
+  color: colors.textSecondary,
+},
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingBottom: 100,
+      paddingHorizontal: 32,
+    },
+emptyTitle: {
+  fontSize: 20,
+  fontWeight: '600',
+  color: colors.textPrimary,
+  marginTop: 16,
+  marginBottom: 8,
+},
+emptySubtitle: {
+  fontSize: 14,
+  color: colors.textSecondary,
+  textAlign: 'center',
+  lineHeight: 20,
+},
+    errorState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingBottom: 100,
+      paddingHorizontal: 32,
+    },
   errorTitle: {
     fontSize: 20,
     fontWeight: '600',

@@ -1,9 +1,9 @@
 import * as cheerio from 'cheerio';
-import { BrochureOCRProcessor } from '../brochure-ocr';
-import { DatabaseService } from '../database';
-import { supabase } from '../supabase-node';
-import { ScrapedProduct, ScraperResult } from '../types';
-import { ScraperUtils } from '../utils';
+import { BrochureOCRProcessor } from '../brochure-ocr.js';
+import { DatabaseService } from '../database.js';
+import { supabase } from '../supabase-node.js';
+import { ScrapedProduct, ScraperResult } from '../types.js';
+import { ScraperUtils } from '../utils.js';
 
 interface BrochureInfo {
   title: string;
@@ -133,20 +133,20 @@ export class WinnersScraper {
   }
 
   /**
-   * Convert extracted product to scraped product format
+   * Convert extracted product to scraped product format (legacy, not used)
    */
-  private convertToScrapedProduct(extracted: ExtractedProduct): ScrapedProduct {
-    return {
-      name: extracted.name,
-      brand: extracted.brand,
-      category: this.categorizeProduct(extracted.name),
-      price: extracted.salePrice,
-      originalPrice: extracted.originalPrice,
-      discount: extracted.discount,
-      unit: extracted.unit,
-      image_url: undefined, // Would need additional processing to extract from brochure
-    };
-  }
+  // private convertToScrapedProduct(extracted: ExtractedProduct): ScrapedProduct {
+  //   return {
+  //     name: extracted.name,
+  //     brand: extracted.brand,
+  //     category: this.categorizeProduct(extracted.name),
+  //     price: extracted.salePrice,
+  //     originalPrice: extracted.originalPrice,
+  //     discount: extracted.discount,
+  //     unit: extracted.unit,
+  //     image_url: undefined, // Would need additional processing to extract from brochure
+  //   };
+  // }
 
   /**
    * Simple category detection
@@ -177,12 +177,12 @@ export class WinnersScraper {
   /**
    * Attempt to extract deals from Paperturn brochure using OCR
    */
-  private async extractDealsFromBrochure(brochureUrl: string): Promise<ScrapedProduct[]> {
+  private async extractDealsFromBrochure(brochureUrl: string, brochureTitle: string): Promise<ScrapedProduct[]> {
     console.log('🔍 Extracting deals using OCR...');
     
     try {
       const ocrProcessor = new BrochureOCRProcessor();
-      const products = await ocrProcessor.processBrochure(brochureUrl, 5);
+      const products = await ocrProcessor.processBrochure(brochureUrl, brochureTitle, 5);
       
       console.log(`✅ OCR extracted ${products.length} products`);
       return products;
@@ -194,6 +194,23 @@ export class WinnersScraper {
       // Fallback to old method
       return this.extractDealsBasic(brochureUrl);
     }
+  }
+
+  /**
+   * Convert ExtractedProduct (from OCR) to ScrapedProduct
+   */
+  private convertToScrapedProduct(product: ExtractedProduct): ScrapedProduct {
+    return {
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      discount: product.discount,
+      image_url: product.image_url,
+      brand: product.brand,
+      category: product.category || this.categorizeProduct(product.name),
+      url: product.url,
+      dealTitle: product.dealTitle || 'Winners Brochure Deal',
+    };
   }
 
   /**
@@ -312,7 +329,8 @@ export class WinnersScraper {
         category: '.category',
       };
 
-      console.log(`🔍 Searching for products...`);
+  console.log(`🔍 Searching for products...`);
+  console.log(`📍 Trying selectors on: ${successUrl}`);
 
       $(selectors.container).each((i, el) => {
         try {
@@ -409,7 +427,8 @@ export class WinnersScraper {
           
           // Step 2: Try to extract deals from brochure
           console.log(`\n🔍 Step 2: Extracting deals from ${brochure.title}...`);
-          const extractedProducts = await this.extractDealsFromBrochure(brochure.url);
+          const extractedProducts = await this.extractDealsFromBrochure(brochure.url, brochure.title);
+          
           
           if (extractedProducts.length > 0) {
             const retailer_id = await this.db.getOrCreateRetailer(
@@ -418,17 +437,37 @@ export class WinnersScraper {
               'Winners Supermarket Mauritius'
             );
 
-            const result = await this.db.saveScrapedData(
-              retailer_id,
-              supermarket_id,
-              extractedProducts,
-              'web_scraping',
-              startDate,
-              endDate
-            );
+            try {
+              const webScrapeResult = await this.db.saveScrapedData(
+                retailer_id,
+                supermarket_id,
+                extractedProducts,
+                'web_scraping',
+                startDate,
+                endDate
+              );
 
-            productsCreated += result.productsCreated;
-            dealsCreated += result.dealsCreated;
+              productsCreated += webScrapeResult.productsCreated;
+              dealsCreated += webScrapeResult.dealsCreated;
+
+              const pamphletResult = await this.db.saveScrapedData(
+                retailer_id,
+                supermarket_id,
+                extractedProducts,
+                'pamphlet',
+                startDate,
+                endDate,
+                pamphletId
+              );
+              productsCreated += pamphletResult.productsCreated;
+              dealsCreated += pamphletResult.dealsCreated;
+              if (pamphletResult.productsCreated === 0 || pamphletResult.dealsCreated === 0) {
+                console.warn('⚠️ No products or deals saved for extracted brochure products:', extractedProducts);
+              }
+            } catch (error: any) {
+              console.error('Error saving extracted products to database:', error.message);
+              console.log('Extracted products:', extractedProducts);
+            }
           }
         }
       }

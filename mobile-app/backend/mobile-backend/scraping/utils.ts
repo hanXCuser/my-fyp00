@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
-import { ScraperConfig } from './types';
+import { ScraperConfig } from './types.js';
 
 export class ScraperUtils {
   private axiosInstance: AxiosInstance;

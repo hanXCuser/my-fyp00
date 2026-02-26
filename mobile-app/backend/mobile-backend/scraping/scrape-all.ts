@@ -1,5 +1,5 @@
-import { DatabaseService } from './database';
-import { MauritiusScraper, RetailerName } from './index';
+import { DatabaseService } from './database.js';
+import { MauritiusScraper, RetailerName } from './index.js';
 
 /**
  * Scrape all retailers and save to database
@@ -13,13 +13,10 @@ async function scrapeAllRetailers() {
   const db = new DatabaseService();
 
   // Retailer configuration
-  const retailers: { name: RetailerName; displayName: string; website: string; description: string }[] = [
-    { name: 'shoprite', displayName: 'Shoprite', website: 'https://www.shoprite.co.za', description: 'Shoprite Mauritius - Leading supermarket chain' },
-    // Other retailers disabled for testing - enable when scrapers are fixed
-    // { name: 'winners', displayName: 'Winners', website: 'https://www.winnersmauritius.com', description: 'Winners - Mauritian supermarket chain' },
-    // { name: 'carrefour', displayName: 'Carrefour', website: 'https://www.carrefour.mu', description: 'Carrefour - French multinational retail corporation' },
-    // { name: 'spar', displayName: 'Spar', website: 'https://www.spar.mu', description: 'Spar - International retail chain' },
-    // { name: 'superu', displayName: 'Super U', website: 'https://www.superu.mu', description: 'Super U - French supermarket brand' },
+  const retailers: { name: RetailerName; displayName: string; website: string; description: string }[] = [    
+    { name: 'winners', displayName: 'Winners', website: 'https://www.winnersmauritius.com', description: 'Winners - Mauritian supermarket chain' },
+    { name: 'superu', displayName: 'Super U', website: 'https://www.superu.mu', description: 'Super U - French supermarket brand' },
+    { name: 'intermart', displayName: 'Intermart', website: 'https://www.intermart.mu', description: 'Intermart - Mauritian supermarket' },
   ];
 
   // Deal validity period (7 days from now)

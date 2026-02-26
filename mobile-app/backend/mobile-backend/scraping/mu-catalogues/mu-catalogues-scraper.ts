@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
-import { DatabaseService } from '../database';
-import { ScrapedProduct } from '../types';
-import { ScraperUtils } from '../utils';
+import { DatabaseService } from '../database.js';
+import { ScrapedProduct } from '../types.js';
+import { ScraperUtils } from '../utils.js';
 
 interface CatalogueInfo {
   title: string;

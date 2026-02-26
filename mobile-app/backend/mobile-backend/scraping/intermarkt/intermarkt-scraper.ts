@@ -4,8 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import puppeteer from 'puppeteer';
 import Tesseract from 'tesseract.js';
-import { DatabaseService } from '../database';
-import { ScrapedProduct } from '../types';
+import { DatabaseService } from '../database.js';
+import { ScrapedProduct } from '../types.js';
 
 export class IntermartScraper {
   private website = 'https://intermartmauritius.com/nos-activites/notre-offre/promotions-2/';
@@ -425,20 +425,23 @@ export class IntermartScraper {
   /**
    * Main scraping function
    */
-  async scrapeDeals(): Promise<ScrapedProduct[]> {
+  async scrapeDeals(): Promise<import('../types').ScraperResult> {
     console.log('\n🛒 Starting Intermarkt scraper...\n');
 
+    const errors: string[] = [];
+    const retailer = 'intermart';
+    let allProducts: import('../types').ScrapedProduct[] = [];
+    let deals: any[] = [];
+    let success = false;
+    let scrapedAt = new Date();
     try {
       // Find brochure URL
       const brochureInfo = await this.findLatestBrochureURL();
-      
       if (!brochureInfo) {
-        console.log('❌ No brochure found');
-        return [];
+        errors.push('No brochure found');
+        return { success: false, products: [], deals: [], errors, retailer, scrapedAt };
       }
-
       let images: Buffer[] = [];
-
       // Check if it's image URLs or PDF
       if (brochureInfo.startsWith('IMAGES:')) {
         const imageUrls = JSON.parse(brochureInfo.substring(7));
@@ -446,24 +449,16 @@ export class IntermartScraper {
       } else {
         // Download PDF
         const pdfPath = await this.downloadPDF(brochureInfo);
-        
-        // Convert to images
         images = await this.convertPDFToImages(pdfPath);
-        
-        // Clean up PDF
         fs.unlinkSync(pdfPath);
         console.log('🧹 Cleaned up temporary PDF file');
       }
-
       if (images.length === 0) {
-        console.log('❌ No images to process');
-        return [];
+        errors.push('No images to process');
+        return { success: false, products: [], deals: [], errors, retailer, scrapedAt };
       }
-
       // Process each image with OCR
       console.log(`\n🔤 Performing OCR on ${images.length} image(s)...`);
-      const allProducts: ScrapedProduct[] = [];
-
       for (let i = 0; i < images.length; i++) {
         console.log(`   Processing image ${i + 1}/${images.length}...`);
         const text = await this.performOCR(images[i]);
@@ -471,13 +466,13 @@ export class IntermartScraper {
         allProducts.push(...products);
         console.log(`   ✓ Extracted ${products.length} products`);
       }
-
       console.log(`\n✅ Total products extracted: ${allProducts.length}\n`);
-      return allProducts;
-
+      success = true;
+      // If you have deals, populate them here, else leave as []
+      return { success, products: allProducts, deals, errors, retailer, scrapedAt };
     } catch (error: any) {
-      console.error(`\n❌ Scraping failed: ${error.message}\n`);
-      return [];
+      errors.push(error.message);
+      return { success: false, products: [], deals: [], errors, retailer, scrapedAt };
     }
   }
 
@@ -486,12 +481,14 @@ export class IntermartScraper {
    */
   async scrapeAndSave(
     supermarket_id: number,
-    startDate: Date,
-    endDate: Date,
+    startDate: string,
+    endDate: string,
     pdfUrl?: string
-  ): Promise<{ productsCreated: number; dealsCreated: number }> {
-    console.log('\n🛒 Starting Intermarkt scraper with database save...\n');
+  ): Promise<{ success: boolean; productsCreated: number; dealsCreated: number; errors: string[] }> {
+    console.log('\n Starting Intermarkt scraper with database save...\n');
 
+    const errors: string[] = [];
+    let success = false;
     try {
       let images: Buffer[] = [];
 
@@ -541,24 +538,28 @@ export class IntermartScraper {
         'Intermarkt Mauritius - Your neighborhood supermarket offering quality products at competitive prices'
       );
 
+      // Convert string to Date for internal use if needed
+      const startDateObj = new Date(startDate);
+      const endDateObj = new Date(endDate);
       const { productsCreated, dealsCreated } = await this.db.saveScrapedData(
         retailer_id,
         supermarket_id,
         allProducts,
         'web_scraping',
-        startDate.toISOString().split('T')[0],
-        endDate.toISOString().split('T')[0]
+        startDateObj.toISOString().split('T')[0],
+        endDateObj.toISOString().split('T')[0]
       );
 
       console.log(`✅ Successfully saved to database!`);
       console.log(`   Products: ${productsCreated}`);
       console.log(`   Deals: ${dealsCreated}\n`);
 
-      return { productsCreated, dealsCreated };
+      success = true;
+      return { success, productsCreated, dealsCreated, errors };
 
     } catch (error: any) {
-      console.error(`❌ Error: ${error.message}\n`);
-      throw error;
+      errors.push(error.message);
+      return { success: false, productsCreated: 0, dealsCreated: 0, errors };
     }
   }
 }

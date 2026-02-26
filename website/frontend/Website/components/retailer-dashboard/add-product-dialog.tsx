@@ -12,7 +12,7 @@ interface AddProductDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) {
+const AddProductDialog = ({ open, onOpenChange }: AddProductDialogProps) => {
   const { inventory, setInventory, showNotification } = useDashboard()
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -20,6 +20,25 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
     stock: 100,
     price: 0
   })
+  const [prediction, setPrediction] = useState<number | null>(null)
+
+  // Example: last 12 values for price prediction
+  const [lastValues, setLastValues] = useState<number[]>([])
+
+  const getPrediction = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ last_values: lastValues }),
+      });
+      const data = await response.json();
+      setPrediction(data.prediction);
+      showNotification(`Predicted price: $${data.prediction}`);
+    } catch (error) {
+      showNotification('Prediction failed');
+    }
+  }
 
   const handleAddProduct = () => {
     if (!newProduct.name || !newProduct.sku || newProduct.price <= 0) {
@@ -65,6 +84,7 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
         </div>
 
         <div className="space-y-4">
+          {/* ...existing product fields... */}
           <div>
             <label className="text-sm font-medium text-white/80 mb-2 block">Product Name</label>
             <Input
@@ -112,6 +132,24 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
             </div>
           </div>
 
+          {/* Prediction input and button */}
+          <div>
+            <label className="text-sm font-medium text-white/80 mb-2 block">Last 12 Values (comma separated)</label>
+            <Input
+              type="text"
+              placeholder="e.g., 1,2,3,4,5,6,7,8,9,10,11,12"
+              value={lastValues.join(",")}
+              onChange={(e) => setLastValues(e.target.value.split(",").map(v => parseFloat(v.trim()) || 0))}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/40"
+            />
+            <Button className="mt-2 bg-blue-500 hover:bg-blue-600 text-white" onClick={getPrediction}>
+              Predict Price
+            </Button>
+            {prediction !== null && (
+              <div className="mt-2 text-white">Predicted Price: ${prediction}</div>
+            )}
+          </div>
+
           <div className="flex space-x-3 pt-4">
             <Button
               type="button"
@@ -135,3 +173,5 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
     </div>
   )
 }
+
+export default AddProductDialog

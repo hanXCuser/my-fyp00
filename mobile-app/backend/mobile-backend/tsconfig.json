@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "es2020",
     "lib": ["ES2020"],
     "outDir": "./dist",
     "rootDir": "./",
@@ -12,6 +12,13 @@
     "resolveJsonModule": true,
     "moduleResolution": "node"
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "api/**/*.ts",
+    "recommendations/**/*.ts",
+    "scraping/supabase-node.ts",
+    "scraping/database.ts",
+    "scraping/utils.ts",
+    "scraping/types.ts"
+  ],
+  "exclude": ["node_modules", "dist", "scraping/**/temp-pdfs"]
 }

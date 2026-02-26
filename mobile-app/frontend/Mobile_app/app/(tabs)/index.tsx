@@ -9,768 +9,30 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
 
 import { useList } from '@/contexts/ListContext';
 import { useFavourites } from '@/contexts/FavouritesContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { 
-  fetchCheapestProducts, 
-  fetchDealsByRetailer, 
-  fetchDealsByDateRange,
-  fetchCategories,
-  CheapestProduct, 
-  RetailerDeals,
-  DealWithProduct
-} from '@/utils/deals-grouping';
+import { fetchDealsGroupedByDateRange, fetchDealsByDateRange, GroupedDeals, DealWithProduct } from '@/utils/deals-grouping';
 import DealCard from '@/components/DealCard';
-import ProductComparisonModal from '@/components/ProductComparisonModal';
 import { Colors } from '@/constants/theme';
-
-export default function HomeScreen() {
-  const [cheapestProducts, setCheapestProducts] = useState<CheapestProduct[]>([]);
-  const [retailerDeals, setRetailerDeals] = useState<RetailerDeals[]>([]);
-  const [categories, setCategories] = useState<string[]>(['All']);
-  const [userLocation, setUserLocation] = useState<string>('Port Louis, MU');
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedRetailer, setSelectedRetailer] = useState<RetailerDeals | null>(null);
-  const [retailerDealsData, setRetailerDealsData] = useState<DealWithProduct[]>([]);
-  const [loadingRetailerDeals, setLoadingRetailerDeals] = useState(false);
-  const [listSelectionVisible, setListSelectionVisible] = useState(false);
-  const [selectedProductToAdd, setSelectedProductToAdd] = useState<any>(null);
-  const [comparisonModalVisible, setComparisonModalVisible] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  
-  const { lists, addItemToList, removeFromList, isInList } = useList();
-  const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
-  const { user } = useAuth();
-  const { colorScheme } = useTheme();
-  const colors = Colors[colorScheme];
-  const styles = useMemo(() => createStyles(colors, colorScheme), [colors, colorScheme]);
-  const normalizedSearchQuery = searchQuery.trim();
-
-  const fetchDeals = useCallback(async () => {
-    setIsLoading(true);
-
-    try {
-      const isSearching = normalizedSearchQuery.length > 0;
-      const searchLimit = isSearching ? 300 : 20;
-
-      const [cheapest, retailers] = await Promise.all([
-        fetchCheapestProducts(searchLimit, selectedCategory, normalizedSearchQuery),
-        fetchDealsByRetailer()
-      ]);
-      
-      setCheapestProducts(cheapest);
-      setRetailerDeals(retailers);
-      console.log(`Loaded ${cheapest.length} cheapest products and ${retailers.length} retailer deals`);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedCategory, normalizedSearchQuery]);
-
-  useEffect(() => {
-    const debounceMs = normalizedSearchQuery ? 300 : 0;
-    const timeoutId = setTimeout(() => {
-      fetchDeals();
-    }, debounceMs);
-
-    return () => clearTimeout(timeoutId);
-  }, [fetchDeals]);
-
-  useEffect(() => {
-    const loadCategories = async () => {
-      const cats = await fetchCategories();
-      setCategories(cats);
-    };
-    loadCategories();
-  }, []);
-
-  useEffect(() => {
-    const loadUserLocation = async () => {
-      if (user?.id) {
-        // Try getting location from user_metadata first
-        const metadataAddress = user.user_metadata?.address;
-        if (metadataAddress && !metadataAddress.includes('@')) {
-          setUserLocation(metadataAddress);
-          return;
-        }
-
-        // Fall back to database
-        const { data } = await supabase
-          .from('users')
-          .select('location')
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
-
-        if (data?.location && !data.location.includes('@')) {
-          setUserLocation(data.location);
-        }
-      }
-    };
-    loadUserLocation();
-  }, [user]);
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchDeals();
-    setRefreshing(false);
-  }, [fetchDeals]);
-
-  const handleRetailerDealPress = async (retailer: RetailerDeals) => {
-    setSelectedRetailer(retailer);
-    setLoadingRetailerDeals(true);
-    setModalVisible(true);
-
-    try {
-      const deals = await fetchDealsByDateRange(retailer.start_date, retailer.end_date);
-      const filteredDeals = deals.filter(d => d.retailer_id === retailer.retailer_id);
-      setRetailerDealsData(filteredDeals);
-    } catch (err) {
-      console.error('Error fetching retailer deals:', err);
-    } finally {
-      setLoadingRetailerDeals(false);
-    }
-  };
-
-  const handleProductPress = (product: CheapestProduct) => {
-    console.log('Product pressed:', product.name);
-    setSelectedProductId(product.product_id);
-    setComparisonModalVisible(true);
-  };
-
-  const handleDealPress = (deal: DealWithProduct) => {
-    console.log('Deal pressed:', deal.products?.name || deal.title);
-  };
-
-  const handleAddToList = (item: any) => {
-    setSelectedProductToAdd(item);
-    setListSelectionVisible(true);
-  };
-
-  const handleSelectList = (listId: number) => {
-    if (selectedProductToAdd?.deal) {
-      addItemToList(listId, selectedProductToAdd.deal.deal_id);
-    } else if (selectedProductToAdd?.deal_id) {
-      addItemToList(listId, selectedProductToAdd.deal_id);
-    }
-    setListSelectionVisible(false);
-    setSelectedProductToAdd(null);
-  };
-
-  const handleToggleFavourite = (item: any) => {
-    const dealId = item?.deal?.deal_id || item?.deal_id;
-    if (!dealId) return;
-
-    if (isFavourite(dealId)) {
-      removeFromFavourites(dealId);
-    } else {
-      addToFavourites(dealId);
-    }
-  };
-
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery) return cheapestProducts;
-
-    const query = searchQuery.toLowerCase();
-    return cheapestProducts.filter(product =>
-      product.name.toLowerCase().includes(query) ||
-      product.brand?.toLowerCase().includes(query) ||
-      product.category?.toLowerCase().includes(query)
-    );
-  }, [cheapestProducts, searchQuery]);
-
-  if (isLoading) {
-    return (
-      <View style={styles.loaderWrapper}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading deals...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.locationContainer}>
-          <Text style={styles.locationLabel}>Your Location</Text>
-          <View style={styles.locationRow}>
-            <Ionicons name="location" size={16} color="#fff" />
-            <Text style={styles.locationText} numberOfLines={2}>{userLocation}</Text>
-          </View>
-        </View>
-        <Pressable style={styles.notificationButton}>
-          <Ionicons name="notifications-outline" size={24} color="#fff" />
-        </Pressable>
-        <Text style={styles.mainTitle}>Find the Best{'\n'}Deals Today</Text>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={colors.icon} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products, brands..."
-          placeholderTextColor={colors.placeholder}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {/* Categories */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Categories</Text>
-      </View>
-      
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false} 
-        style={styles.categoriesContainer}
-        contentContainerStyle={styles.categoriesContent}
-      >
-        {categories.map((category) => (
-          <Pressable
-            key={category}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category && styles.categoryChipActive
-            ]}
-            onPress={() => setSelectedCategory(category)}
-          >
-            <Text
-              style={[
-                styles.categoryText,
-                selectedCategory === category && styles.categoryTextActive
-              ]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
-            >
-              {category}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      {/* Cheapest Products Section */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Cheapest Today 🔥</Text>
-      </View>
-
-      {filteredProducts.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No products found</Text>
-        </View>
-      ) : (
-        <View style={styles.productsGrid}>
-          {filteredProducts.map((product) => (
-            <Pressable
-              key={product.product_id}
-              style={styles.productCard}
-              onPress={() => handleProductPress(product)}
-            >
-              {product.image_url ? (
-                <Image
-                  source={{ uri: product.image_url }}
-                  style={styles.productImage}
-                  contentFit="contain"
-                />
-              ) : (
-                <View style={styles.productImagePlaceholder}>
-                  <Text style={styles.placeholderText}>
-                    {product.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-
-              <Pressable 
-                style={styles.favoriteButton}
-                onPress={() => handleToggleFavourite({ deal_id: product.deal_id })}
-              >
-                <Ionicons
-                  name={isFavourite(product.deal_id) ? 'heart' : 'heart-outline'}
-                  size={20}
-                  color={isFavourite(product.deal_id) ? '#ef4444' : colors.textSecondary}
-                />
-              </Pressable>
-
-              <View style={styles.productInfo}>
-                <Text style={styles.productName} numberOfLines={2}>
-                  {product.name}
-                </Text>
-                {product.category && (
-                  <Text style={styles.productCategory}>{product.category}</Text>
-                )}
-                <View style={styles.priceRow}>
-                  <Text style={styles.productPrice}>Rs {product.cheapest_price.toFixed(0)}</Text>
-                  {product.savings && product.savings > 0 && (
-                    <View style={styles.savingsLabel}>
-                      <Text
-                        style={styles.savingsText}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.75}
-                      >
-                        Save Rs {product.savings.toFixed(0)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                {product.original_price && (
-                  <Text style={styles.originalPrice}>
-                    Rs {product.original_price.toFixed(0)}
-                  </Text>
-                )}
-                <View style={styles.storeRow}>
-                  <View style={styles.storeBadge}>
-                    <Text style={styles.storeName} numberOfLines={1}>
-                      {product.store_name}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <Pressable 
-                style={styles.addButton}
-                onPress={() => handleAddToList({ deal_id: product.deal_id })}
-              >
-                <Ionicons name="add-circle" size={32} color={colors.primary} />
-              </Pressable>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {/* Weekly Deals Section */}
-      <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-        <Text style={styles.sectionTitle}>Weekly Deals</Text>
-      </View>
-
-      {retailerDeals.map((retailer) => (
-        <Pressable
-          key={`${retailer.retailer_id}-${retailer.start_date}`}
-          style={styles.dealCard}
-          onPress={() => handleRetailerDealPress(retailer)}
-        >
-          <View style={styles.dealCardContent}>
-            <View style={styles.dealInfo}>
-              <Text style={styles.dealTitle}>{retailer.deal_title}</Text>
-              <Text style={styles.dealSubtitle}>{retailer.retailer_name}</Text>
-              <Text style={styles.dealValidity}>Valid: {retailer.dateRange}</Text>
-              <Text style={styles.dealCount}>{retailer.deal_count} products</Text>
-            </View>
-            <View style={styles.dealIcon}>
-              <Ionicons name="chevron-forward" size={24} color={colors.primary} />
-            </View>
-          </View>
-        </Pressable>
-      ))}
-
-      {/* Retailer Deals Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <View>
-              <Text style={styles.modalTitle}>{selectedRetailer?.deal_title}</Text>
-              <Text style={styles.modalSubtitle}>{selectedRetailer?.retailer_name}</Text>
-            </View>
-            <Pressable onPress={() => setModalVisible(false)}>
-              <Ionicons name="close" size={28} color={colors.text} />
-            </Pressable>
-          </View>
-
-          {loadingRetailerDeals ? (
-            <View style={styles.modalLoading}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-          ) : (
-            <FlatList
-              data={retailerDealsData}
-              keyExtractor={(item) => item.deal_id.toString()}
-              numColumns={2}
-              renderItem={({ item }) => (
-                <View style={styles.modalDealCard}>
-                  <DealCard
-                    deal={item}
-                    onPress={() => handleDealPress(item)}
-                    onToggleFavourite={() => handleToggleFavourite({ deal: item })}
-                    onAddToList={() => handleAddToList({ deal: item })}
-                  />
-                </View>
-              )}
-              contentContainerStyle={styles.modalContent}
-              columnWrapperStyle={styles.modalRow}
-            />
-          )}
-        </View>
-      </Modal>
-
-      {/* List Selection Modal */}
-      <Modal
-        visible={listSelectionVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setListSelectionVisible(false)}
-      >
-        <Pressable 
-          style={styles.modalOverlay} 
-          onPress={() => setListSelectionVisible(false)}
-        >
-          <View style={styles.listModal}>
-            <Text style={styles.listModalTitle}>Add to List</Text>
-            <ScrollView style={styles.listScrollView}>
-              {lists.map((list) => (
-                <Pressable
-                  key={list.list_id}
-                  style={styles.listItem}
-                  onPress={() => handleSelectList(list.list_id)}
-                >
-                  <Text style={styles.listItemText}>{list.list_name}</Text>
-                  <Ionicons name="chevron-forward" size={20} color={colors.icon} />
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Product Comparison Modal */}
-      {selectedProductId && (
-        <ProductComparisonModal
-          visible={comparisonModalVisible}
-          productId={selectedProductId}
-          onClose={() => {
-            setComparisonModalVisible(false);
-            setSelectedProductId(null);
-          }}
-          onAddToList={(deal) => {
-            setSelectedProductToAdd({ deal });
-            setListSelectionVisible(true);
-          }}
-          onToggleFavourite={(deal) => handleToggleFavourite({ deal })}
-        />
-      )}
-    </ScrollView>
-  );
-}
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import ProductComparisonModal from '@/components/ProductComparisonModal';
 
 const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark') =>
   StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
+      paddingTop: 48,
     },
-    header: {
-      backgroundColor: colors.primary,
-      paddingHorizontal: 20,
-      paddingTop: 50,
-      paddingBottom: 100,
-      borderBottomLeftRadius: 24,
-      borderBottomRightRadius: 24,
-    },
-    locationContainer: {
-      marginBottom: 24,
-      paddingRight: 50,
-      flex: 1,
-    },
-    locationLabel: {
-      fontSize: 12,
-      color: 'rgba(255, 255, 255, 0.8)',
-      marginBottom: 2,
-    },
-    locationRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      flexWrap: 'wrap',
-    },
-    locationText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: '#fff',
-      flex: 1,
-    },
-    notificationButton: {
-      position: 'absolute',
-      right: 20,
-      top: 50,
-    },
-    mainTitle: {
+    heading: {
       fontSize: 28,
       fontWeight: '700',
-      color: '#fff',
-      lineHeight: 36,
-    },
-    searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      borderRadius: 12,
+      marginBottom: 16,
+      color: colors.text,
       paddingHorizontal: 16,
-      paddingVertical: 12,
-      marginHorizontal: 20,
-      marginTop: -50,
-      marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    searchIcon: {
-      marginRight: 8,
-    },
-    searchInput: {
-      flex: 1,
-      fontSize: 16,
-      color: colors.text,
-    },
-    categoriesContainer: {
-      marginBottom: 16,
-    },
-    categoriesContent: {
-      paddingHorizontal: 20,
-      gap: 8,
-    },
-    categoryChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      flexShrink: 0,
-      alignSelf: 'flex-start',
-    },
-    categoryChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    categoryText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-    },
-    categoryTextActive: {
-      color: '#fff',
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      marginBottom: 16,
-    },
-    sectionTitle: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    seeAllText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.primary,
-    },
-    emptyContainer: {
-      padding: 40,
-      alignItems: 'center',
-    },
-    emptyText: {
-      fontSize: 16,
-      color: colors.textMuted,
-    },
-    productsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      paddingHorizontal: 12,
-      gap: 8,
-    },
-    productCard: {
-      width: '48%',
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      padding: 12,
-      marginBottom: 8,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    productImage: {
-      width: '100%',
-      height: 120,
-      borderRadius: 12,
-      marginBottom: 8,
-    },
-    productImagePlaceholder: {
-      width: '100%',
-      height: 120,
-      borderRadius: 12,
-      backgroundColor: colors.surface,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    placeholderText: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: colors.placeholder,
-    },
-    favoriteButton: {
-      position: 'absolute',
-      top: 20,
-      right: 20,
-      backgroundColor: colors.cardBackground,
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-    },
-    productInfo: {
-      flex: 1,
-    },
-    productName: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 4,
-      minHeight: 36,
-    },
-    productCategory: {
-      fontSize: 12,
-      color: colors.textMuted,
-      marginBottom: 6,
-    },
-    priceRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 6,
-    },
-    productPrice: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: 0,
-      flexShrink: 1,
-      marginRight: 6,
-    },
-    originalPrice: {
-      fontSize: 11,
-      color: colors.textMuted,
-    },
-    savingsLabel: {
-      backgroundColor: colors.success,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
-      maxWidth: '55%',
-      flexShrink: 1,
-    },
-    savingsText: {
-      fontSize: 10,
-      fontWeight: '600',
-      color: '#fff',
-      flexShrink: 1,
-    },
-    storeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    storeBadge: {
-      backgroundColor: colorScheme === 'dark' ? colors.surface : colors.primary + '15',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 6,
-      maxWidth: '100%',
-    },
-    storeName: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: colors.primary,
-    },
-    addButton: {
-      position: 'absolute',
-      bottom: 12,
-      right: 12,
-    },
-    dealCard: {
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      marginHorizontal: 20,
-      marginBottom: 12,
-      padding: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    dealCardContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    dealInfo: {
-      flex: 1,
-    },
-    dealTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: 4,
-    },
-    dealSubtitle: {
-      fontSize: 14,
-      color: colors.textMuted,
-      marginBottom: 4,
-    },
-    dealValidity: {
-      fontSize: 12,
-      color: colors.textMuted,
-      marginBottom: 4,
-    },
-    dealCount: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.primary,
-    },
-    dealIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colorScheme === 'dark' ? colors.surface : colors.primary + '15',
-      justifyContent: 'center',
-      alignItems: 'center',
     },
     loaderWrapper: {
       flex: 1,
@@ -781,6 +43,69 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
       marginTop: 12,
       fontSize: 16,
       color: colors.textMuted,
+    },
+    listContent: {
+      paddingBottom: 32,
+    },
+    groupContainer: {
+      marginBottom: 24,
+    },
+    groupHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      marginBottom: 12,
+    },
+    dateRange: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    dealCountText: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    viewAllText: {
+      fontSize: 14,
+      color: colors.accentPrimary,
+      fontWeight: '600',
+    },
+    dealsScroll: {
+      paddingLeft: 16,
+      paddingRight: 8,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 32,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    errorText: {
+      position: 'absolute',
+      bottom: 24,
+      left: 16,
+      right: 16,
+      backgroundColor: colorScheme === 'dark' ? '#3b1f21' : '#fee2e2',
+      padding: 12,
+      borderRadius: 8,
+      color: colors.danger,
+      textAlign: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.danger,
     },
     modalContainer: {
       flex: 1,
@@ -807,6 +132,52 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
       fontSize: 14,
       color: colors.textMuted,
     },
+    sortContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+      gap: 8,
+    },
+    sortButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    sortButtonText: {
+      marginLeft: 6,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.accentPrimary,
+    },
+    filterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    filterButtonActive: {
+      backgroundColor: colorScheme === 'dark' ? '#123228' : '#d1fae5',
+      borderColor: colors.success,
+    },
+    filterButtonText: {
+      marginLeft: 6,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    filterButtonTextActive: {
+      color: colors.success,
+    },
     modalLoading: {
       flex: 1,
       justifyContent: 'center',
@@ -823,38 +194,450 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
       width: '48%',
       marginBottom: 16,
     },
-    modalOverlay: {
+    listModalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'flex-end',
     },
-    listModal: {
+    listModalContent: {
       backgroundColor: colors.card,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       maxHeight: '70%',
+    },
+    listModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
       padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
     },
     listModalTitle: {
       fontSize: 20,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 16,
+    },
+    productPreview: {
+      padding: 16,
+      backgroundColor: colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    productPreviewText: {
+      fontSize: 14,
+      color: colors.textMuted,
     },
     listScrollView: {
       maxHeight: 400,
     },
-    listItem: {
+    noListsContainer: {
+      padding: 40,
+      alignItems: 'center',
+    },
+    noListsText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    noListsSubtext: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    listOption: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 16,
+      padding: 16,
       borderBottomWidth: 1,
       borderBottomColor: colors.cardBorder,
     },
-    listItemText: {
+    listOptionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: colorScheme === 'dark' ? '#1c2733' : '#eef2ff',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    listOptionInfo: {
+      flex: 1,
+    },
+    listOptionName: {
       fontSize: 16,
       fontWeight: '600',
       color: colors.text,
+      marginBottom: 2,
+    },
+    listOptionCount: {
+      fontSize: 14,
+      color: colors.textMuted,
     },
   });
+
+export default function HomeScreen() {
+  const [groupedDeals, setGroupedDeals] = useState<GroupedDeals[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<GroupedDeals | null>(null);
+  const [allDealsInRange, setAllDealsInRange] = useState<DealWithProduct[]>([]);
+  const [loadingAllDeals, setLoadingAllDeals] = useState(false);
+  const [sortByPrice, setSortByPrice] = useState<'asc' | 'desc' | 'none'>('none');
+  const [showDealsOnly, setShowDealsOnly] = useState(false);
+  const [listSelectionVisible, setListSelectionVisible] = useState(false);
+  const [selectedProductToAdd, setSelectedProductToAdd] = useState<any>(null);
+  const [comparisonModalVisible, setComparisonModalVisible] = useState(false);
+  const [comparisonKeyword, setComparisonKeyword] = useState('');
+
+  
+  const { lists, addItemToList, removeFromList, isInList } = useList();
+  const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
+  const colorSchemeRaw = useColorScheme();
+  const colorScheme: 'light' | 'dark' = colorSchemeRaw === 'dark' ? 'dark' : 'light';
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors, colorScheme), [colors, colorScheme]);
+
+  const fetchDeals = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchDealsGroupedByDateRange(10);
+      setGroupedDeals(data);
+      console.log(`Loaded ${data.length} deal groups`);
+    } catch (err) {
+      console.error('Error fetching deals:', err);
+      setError('Failed to load deals');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDeals();
+  }, [fetchDeals]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchDeals();
+    setRefreshing(false);
+  }, [fetchDeals]);
+
+  const handleDealPress = (deal: DealWithProduct) => {
+    // Use product name or title as keyword for comparison
+    const keyword = deal.products?.name || deal.title || '';
+    setComparisonKeyword(keyword);
+    setComparisonModalVisible(true);
+  };
+
+  const handleAddToList = (deal: DealWithProduct) => {
+    const product = {
+      product_id: deal.product_id,
+      name: deal.title || deal.products?.name || 'Unknown',
+      brand: deal.products?.brand,
+      category: deal.products?.category,
+      image_url: deal.products?.image_url,
+      deal: deal,
+    } as any;
+    
+    setSelectedProductToAdd(product);
+    setListSelectionVisible(true);
+  };
+
+  const handleSelectList = async (listId: number) => {
+    if (selectedProductToAdd) {
+      await addItemToList(listId, selectedProductToAdd);
+      setListSelectionVisible(false);
+      setSelectedProductToAdd(null);
+    }
+  };
+
+  const handleToggleFavourite = (deal: DealWithProduct) => {
+    const product_id = deal.product_id;
+
+    if (isFavourite(product_id)) {
+      removeFromFavourites(product_id);
+    } else {
+      const product = {
+        product_id: product_id,
+        name: deal.title || deal.products?.name || 'Unknown',
+        brand: deal.products?.brand,
+        category: deal.products?.category,
+        image_url: deal.products?.image_url,
+        deal: deal,
+      } as any;
+      addToFavourites(product);
+    }
+  };
+
+  const handleViewAll = async (group: GroupedDeals) => {
+    setSelectedGroup(group);
+    setModalVisible(true);
+    setLoadingAllDeals(true);
+    setSortByPrice('none');
+    setShowDealsOnly(false);
+
+    try {
+      const allDeals = await fetchDealsByDateRange(group.startDate, group.endDate);
+      setAllDealsInRange(allDeals);
+    } catch (err) {
+      console.error('Error fetching all deals:', err);
+    } finally {
+      setLoadingAllDeals(false);
+    }
+  };
+
+  const togglePriceSort = () => {
+    if (sortByPrice === 'none' || sortByPrice === 'desc') {
+      setSortByPrice('asc');
+    } else {
+      setSortByPrice('desc');
+    }
+  };
+
+  const getSortedDeals = () => {
+    let filtered = allDealsInRange;
+    
+    // Filter to show only items with discounts
+    if (showDealsOnly) {
+      filtered = filtered.filter(deal => {
+        const hasDiscount = deal.discount && deal.discount > 0;
+        const hasPriceDiff = deal.original_price && deal.original_price > deal.deal_price;
+        return hasDiscount || hasPriceDiff;
+      });
+    }
+    
+    // Sort by price
+    if (sortByPrice === 'none') {
+      return filtered;
+    }
+    
+    const sorted = [...filtered].sort((a, b) => {
+      const priceA = a.deal_price;
+      const priceB = b.deal_price;
+      return sortByPrice === 'asc' ? priceA - priceB : priceB - priceA;
+    });
+    
+    return sorted;
+  };
+
+  const renderDealGroup = ({ item: group }: { item: GroupedDeals }) => {
+    return (
+      <View style={styles.groupContainer}>
+        <View style={styles.groupHeader}>
+          <View>
+            <Text style={styles.dateRange}>Valid: {group.dateRange}</Text>
+            <Text style={styles.dealCountText}>{group.dealCount} deal{group.dealCount !== 1 ? 's' : ''}</Text>
+          </View>
+          <Pressable onPress={() => handleViewAll(group)}>
+            <Text style={styles.viewAllText}>View all</Text>
+          </Pressable>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.dealsScroll}
+        >
+          {group.deals.map((deal) => (
+            <DealCard
+              key={deal.deal_id}
+              deal={deal}
+              onPress={() => handleDealPress(deal)}
+              onAddToList={() => handleAddToList(deal)}
+              onToggleFavourite={() => handleToggleFavourite(deal)}
+              isInList={isInList(deal.product_id)}
+              isFavourite={isFavourite(deal.product_id)}
+            />
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.heading}>🔥 Hot Deals</Text>
+        <View style={styles.loaderWrapper}>
+          <ActivityIndicator size="large" color={colors.accentPrimary} />
+          <Text style={styles.loadingText}>Loading deals...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.heading}>🔥 Hot Deals</Text>
+      
+      {groupedDeals.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="pricetag-outline" size={64} color={colors.icon} />
+          <Text style={styles.emptyTitle}>No deals available</Text>
+          <Text style={styles.emptySubtitle}>Check back later for amazing deals</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={groupedDeals}
+          keyExtractor={(item) => `${item.startDate}-${item.endDate}`}
+          renderItem={renderDealGroup}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accentPrimary} />
+          }
+        />
+      )}
+
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      {/* Modal for viewing all deals in a date range */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>
+                {selectedGroup?.dateRange}
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                {allDealsInRange.length} deals
+              </Text>
+            </View>
+            <Pressable onPress={() => setModalVisible(false)} hitSlop={10}>
+              <Ionicons name="close-circle" size={32} color={colors.icon} />
+            </Pressable>
+          </View>
+
+          {/* Sort Controls */}
+          <View style={styles.sortContainer}>
+            <Pressable style={styles.sortButton} onPress={togglePriceSort}>
+              <Ionicons 
+                name={sortByPrice === 'asc' ? 'arrow-up' : sortByPrice === 'desc' ? 'arrow-down' : 'swap-vertical'} 
+                size={16} 
+                color={colors.accentPrimary} 
+              />
+              <Text style={styles.sortButtonText}>
+                {sortByPrice === 'asc' ? 'Price: Low to High' : sortByPrice === 'desc' ? 'Price: High to Low' : 'Sort by Price'}
+              </Text>
+            </Pressable>
+            
+            <Pressable 
+              style={[styles.filterButton, showDealsOnly && styles.filterButtonActive]} 
+              onPress={() => setShowDealsOnly(!showDealsOnly)}
+            >
+              <Ionicons 
+                name={showDealsOnly ? 'pricetag' : 'pricetag-outline'} 
+                size={16} 
+                color={showDealsOnly ? colors.success : colors.icon} 
+              />
+              <Text style={[styles.filterButtonText, showDealsOnly && styles.filterButtonTextActive]}>
+                Deals Only
+              </Text>
+            </Pressable>
+          </View>
+
+          {loadingAllDeals ? (
+            <View style={styles.modalLoading}>
+              <ActivityIndicator size="large" color={colors.accentPrimary} />
+              <Text style={styles.loadingText}>Loading deals...</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={getSortedDeals()}
+              keyExtractor={(item) => item.deal_id.toString()}
+              renderItem={({ item }) => (
+                <View style={styles.modalDealCard}>
+                  <DealCard
+                    deal={item}
+                    onPress={() => handleDealPress(item)}
+                    onAddToList={() => handleAddToList(item)}
+                    onToggleFavourite={() => handleToggleFavourite(item)}
+                    isInList={isInList(item.product_id)}
+                    isFavourite={isFavourite(item.product_id)}
+                  />
+                </View>
+              )}
+              numColumns={2}
+              contentContainerStyle={styles.modalContent}
+              columnWrapperStyle={styles.modalRow}
+            />
+          )}
+        </View>
+      </Modal>
+
+      {/* List Selection Modal */}
+      <Modal
+        visible={listSelectionVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setListSelectionVisible(false)}
+      >
+        <View style={styles.listModalOverlay}>
+          <View style={styles.listModalContent}>
+            <View style={styles.listModalHeader}>
+              <Text style={styles.listModalTitle}>Add to List</Text>
+              <Pressable onPress={() => setListSelectionVisible(false)} hitSlop={10}>
+                <Ionicons name="close" size={24} color={colors.icon} />
+              </Pressable>
+            </View>
+            
+            {selectedProductToAdd && (
+              <View style={styles.productPreview}>
+                <Text style={styles.productPreviewText} numberOfLines={1}>
+                  {selectedProductToAdd.name}
+                </Text>
+              </View>
+            )}
+
+            <ScrollView style={styles.listScrollView}>
+              {lists.length === 0 ? (
+                <View style={styles.noListsContainer}>
+                  <Ionicons name="list-outline" size={48} color={colors.icon} />
+                  <Text style={styles.noListsText}>No lists yet</Text>
+                  <Text style={styles.noListsSubtext}>
+                    Go to the My List tab to create your first list
+                  </Text>
+                </View>
+              ) : (
+                lists.map((list) => (
+                  <Pressable
+                    key={list.list_id}
+                    style={styles.listOption}
+                    onPress={() => handleSelectList(list.list_id)}
+                  >
+                    <View style={styles.listOptionIcon}>
+                      <Ionicons name="list" size={24} color={colors.accentPrimary} />
+                    </View>
+                    <View style={styles.listOptionInfo}>
+                      <Text style={styles.listOptionName}>{list.list_name}</Text>
+                      <Text style={styles.listOptionCount}>
+                        {list.item_count || 0} {list.item_count === 1 ? 'item' : 'items'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.icon} />
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <ProductComparisonModal
+        visible={comparisonModalVisible}
+        onClose={() => setComparisonModalVisible(false)}
+        keyword={comparisonKeyword}
+      />
+    </View>
+  );
+}

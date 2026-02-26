@@ -1,5 +1,5 @@
-import { supabase } from './supabase-node';
-import { Deal, Product, ScrapedProduct } from './types';
+import { supabase } from './supabase-node.js';
+import { Deal, Product, ScrapedProduct } from './types.js';
 
 export class DatabaseService {
   /**

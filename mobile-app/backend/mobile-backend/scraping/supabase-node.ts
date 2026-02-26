@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load environment variables from .env file in backend directory
+// __dirname is available because the emitted code targets CommonJS
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
