@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ListProvider } from "@/contexts/ListContext";
 import { FavouritesProvider } from "@/contexts/FavouritesContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 function RootLayoutNav() {
   const router = useRouter();
@@ -84,11 +85,13 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <FavouritesProvider>
-        <ListProvider>
-          <RootLayoutNav />
-        </ListProvider>
-      </FavouritesProvider>
+      <ThemeProvider>
+        <FavouritesProvider>
+          <ListProvider>
+            <RootLayoutNav />
+          </ListProvider>
+        </FavouritesProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

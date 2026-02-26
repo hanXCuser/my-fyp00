@@ -1,10 +1,12 @@
 import { StyleSheet, Text, View, FlatList, Image, Pressable, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as Location from 'expo-location';
 import { useFavourites } from '@/contexts/FavouritesContext';
 import { useList } from '@/contexts/ListContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Colors } from '@/constants/theme';
 
 type RecommendedDeal = {
   product_id: number;
@@ -31,6 +33,9 @@ export default function ForYouScreen() {
   const { user } = useAuth();
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const { addToList, removeFromList, isInList } = useList();
+  const { colorScheme } = useTheme();
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors), [colors]);
   
   const [recommendations, setRecommendations] = useState<RecommendedDeal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,7 +140,7 @@ export default function ForYouScreen() {
                 <Ionicons 
                   name={isFav ? "heart" : "heart-outline"} 
                   size={24} 
-                  color={isFav ? "#ff3366" : "#6b7280"} 
+                  color={isFav ? "#ff3366" : colors.textSecondary} 
                 />
               </Pressable>
             </View>
@@ -143,7 +148,7 @@ export default function ForYouScreen() {
 
           {/* Reason Badge */}
           <View style={styles.reasonBadge}>
-            <Ionicons name="sparkles" size={14} color="#0d9488" />
+            <Ionicons name="sparkles" size={14} color={colors.accentSecondary} />
             <Text style={styles.reasonText}>{item.reason}</Text>
           </View>
 
@@ -160,7 +165,7 @@ export default function ForYouScreen() {
 
           {/* Location Info */}
           <View style={styles.locationRow}>
-            <Ionicons name="location" size={16} color="#6b7280" />
+            <Ionicons name="location" size={16} color={colors.textSecondary} />
             <Text style={styles.locationText}>
               {item.supermarket_name} · {item.retailer}
             </Text>
@@ -196,7 +201,7 @@ export default function ForYouScreen() {
             </Pressable>
             
             <Pressable style={[styles.actionButton, styles.secondaryButton]}>
-              <Ionicons name="information-circle-outline" size={20} color="#111" />
+              <Ionicons name="information-circle-outline" size={20} color={colors.textPrimary} />
               <Text style={styles.secondaryButtonText}>Details</Text>
             </Pressable>
           </View>
@@ -209,7 +214,7 @@ export default function ForYouScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.emptyState}>
-          <Ionicons name="person-outline" size={64} color="#ccc" />
+          <Ionicons name="person-outline" size={64} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>Sign in to see recommendations</Text>
           <Text style={styles.emptySubtitle}>
             Get personalized deals based on your favorites and location
@@ -224,7 +229,7 @@ export default function ForYouScreen() {
       <View style={styles.container}>
         <Text style={styles.heading}>For You</Text>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0d9488" />
+          <ActivityIndicator size="large" color={colors.accentSecondary} />
           <Text style={styles.loadingText}>Finding best deals for you...</Text>
         </View>
       </View>
@@ -236,7 +241,7 @@ export default function ForYouScreen() {
       <View style={styles.container}>
         <Text style={styles.heading}>For You</Text>
         <View style={styles.errorState}>
-          <Ionicons name="alert-circle-outline" size={64} color="#ff3366" />
+          <Ionicons name="alert-circle-outline" size={64} color={colors.danger} />
           <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
           <Text style={styles.errorSubtitle}>{error}</Text>
           <Pressable style={styles.retryButton} onPress={loadRecommendations}>
@@ -258,7 +263,7 @@ export default function ForYouScreen() {
       
       {recommendations.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="star-outline" size={64} color="#ccc" />
+          <Ionicons name="star-outline" size={64} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>No recommendations yet</Text>
           <Text style={styles.emptySubtitle}>
             Add products to your favorites or shopping list to get personalized deals
@@ -274,7 +279,7 @@ export default function ForYouScreen() {
             <RefreshControl 
               refreshing={refreshing} 
               onRefresh={onRefresh}
-              tintColor="#0d9488"
+              tintColor={colors.accentSecondary}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -284,10 +289,10 @@ export default function ForYouScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fb',
+    backgroundColor: colors.screenBackground,
     paddingHorizontal: 16,
     paddingTop: 48,
   },
@@ -298,21 +303,21 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     marginBottom: 4,
-    color: '#111',
+    color: colors.textPrimary,
   },
   subheading: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   listContent: {
     paddingBottom: 32,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#edf0f5',
+    borderColor: colors.borderColor,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -338,17 +343,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   categoryText: {
     fontSize: 13,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   reasonBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e0f2f1',
+    backgroundColor: colors.accentSecondary + '20',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
@@ -357,7 +362,7 @@ const styles = StyleSheet.create({
   },
   reasonText: {
     fontSize: 12,
-    color: '#0d9488',
+    color: colors.accentSecondary,
     fontWeight: '600',
     marginLeft: 4,
   },
@@ -371,14 +376,14 @@ const styles = StyleSheet.create({
   },
   originalPrice: {
     fontSize: 14,
-    color: '#9aa0a6',
+    color: colors.textMuted,
     textDecorationLine: 'line-through',
     marginRight: 8,
   },
   price: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111',
+    color: colors.textPrimary,
   },
   discountBadge: {
     backgroundColor: '#ff3366',
@@ -399,13 +404,13 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 13,
-    color: '#6b7280',
+    color: colors.textSecondary,
     marginLeft: 4,
     flex: 1,
   },
   distanceText: {
     fontSize: 13,
-    color: '#0d9488',
+    color: colors.accentSecondary,
     fontWeight: '600',
   },
   actionRow: {
@@ -423,13 +428,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   primaryButton: {
-    backgroundColor: '#111',
+    backgroundColor: colors.textPrimary,
   },
   actionButtonActive: {
-    backgroundColor: '#0d9488',
+    backgroundColor: colors.accentSecondary,
   },
   secondaryButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surface,
   },
   actionButtonText: {
     color: '#fff',
@@ -437,7 +442,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   secondaryButtonText: {
-    color: '#111',
+    color: colors.textPrimary,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -450,7 +455,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   emptyState: {
     flex: 1,
@@ -462,13 +467,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -482,18 +487,18 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   errorSubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#0d9488',
+    backgroundColor: colors.accentSecondary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 10,

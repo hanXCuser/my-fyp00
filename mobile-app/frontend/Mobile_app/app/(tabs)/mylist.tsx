@@ -1,11 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View, FlatList, Pressable, TextInput, Modal, Alert } from 'react-native';
 import { useList } from '@/contexts/ListContext';
-import { useState } from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Colors } from '@/constants/theme';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 
 export default function MyListScreen() {
   const { lists, createList, deleteList, renameList, isLoading } = useList();
+  const { colorScheme } = useTheme();
+  const colors = Colors[colorScheme];
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [modalVisible, setModalVisible] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [editingList, setEditingList] = useState<{ id: number; name: string } | null>(null);
@@ -60,7 +65,7 @@ export default function MyListScreen() {
         onPress={() => router.push(`/list-detail?listId=${item.list_id}&listName=${encodeURIComponent(item.list_name)}`)}
       >
         <View style={styles.listIcon}>
-          <Ionicons name="list" size={28} color="#4f46e5" />
+          <Ionicons name="list" size={28} color={colors.accentPrimary} />
         </View>
         <View style={styles.listInfo}>
           <Text style={styles.listName}>{item.list_name}</Text>
@@ -77,7 +82,7 @@ export default function MyListScreen() {
             }}
             hitSlop={10}
           >
-            <Ionicons name="pencil" size={20} color="#6b7280" />
+            <Ionicons name="pencil" size={20} color={colors.textSecondary} />
           </Pressable>
           <Pressable
             style={styles.actionButton}
@@ -87,7 +92,7 @@ export default function MyListScreen() {
             }}
             hitSlop={10}
           >
-            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            <Ionicons name="trash-outline" size={20} color={colors.danger} />
           </Pressable>
         </View>
       </Pressable>
@@ -102,7 +107,7 @@ export default function MyListScreen() {
           style={styles.createButton}
           onPress={() => setModalVisible(true)}
         >
-          <Ionicons name="add-circle" size={24} color="#4f46e5" />
+          <Ionicons name="add-circle" size={24} color={colors.accentPrimary} />
           <Text style={styles.createButtonText}>New List</Text>
         </Pressable>
       </View>
@@ -113,7 +118,7 @@ export default function MyListScreen() {
         </View>
       ) : lists.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="list-outline" size={80} color="#9aa0a6" />
+          <Ionicons name="list-outline" size={80} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>No lists yet</Text>
           <Text style={styles.emptySubtitle}>
             Create your first shopping list to get started
@@ -175,10 +180,10 @@ export default function MyListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fb',
+    backgroundColor: colors.screenBackground,
     paddingTop: 48,
     paddingHorizontal: 16,
   },
@@ -191,18 +196,18 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
   },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eef2ff',
+    backgroundColor: colors.accentPrimary + '20',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   createButtonText: {
-    color: '#4f46e5',
+    color: colors.accentPrimary,
     fontWeight: '600',
     marginLeft: 4,
     fontSize: 14,
@@ -211,14 +216,14 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   listCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#edf0f5',
+    borderColor: colors.borderColor,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -229,7 +234,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 12,
-    backgroundColor: '#eef2ff',
+    backgroundColor: colors.accentPrimary + '20',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -240,12 +245,12 @@ const styles = StyleSheet.create({
   listName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   itemCount: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
   },
   listActions: {
     flexDirection: 'row',
@@ -263,18 +268,18 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
   emptyCreateButton: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: colors.accentPrimary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 10,
@@ -291,7 +296,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 16,
     padding: 24,
     width: '85%',
@@ -300,16 +305,18 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.borderColor,
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
     marginBottom: 20,
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -319,11 +326,11 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.surface,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#6b7280',
+    color: colors.textSecondary,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -331,11 +338,11 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: '#4f46e5',
+    backgroundColor: colors.accentPrimary,
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#c7d2fe',
+    backgroundColor: colors.accentPrimary + '60',
   },
   saveButtonText: {
     color: '#fff',
