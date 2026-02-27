@@ -1,9 +1,9 @@
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
 import https from 'https';
 import { ScraperConfig } from './types.js';
 
 export class ScraperUtils {
-  private axiosInstance: AxiosInstance;
+  private axiosInstance: ReturnType<typeof axios.create>;
 
   constructor(config: ScraperConfig) {
     const allowInsecure = Boolean(config.insecureTLS) || Boolean(process.env.SCRAPER_INSECURE_TLS);
