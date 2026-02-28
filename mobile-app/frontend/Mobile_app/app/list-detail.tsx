@@ -1,13 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View, FlatList, Image, Pressable, ActivityIndicator } from 'react-native';
 import { useList } from '@/contexts/ListContext';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+
+
+import { fetchAllDealsForProduct, ProductDealComparison } from '../utils/deals-grouping';
 
 export default function ListDetailScreen() {
   const { listId, listName } = useLocalSearchParams<{ listId: string; listName: string }>();
   const { currentList, loadListItems, removeItemFromList, toggleItemChecked } = useList();
   const router = useRouter();
+  const [dealsMap, setDealsMap] = useState<Record<number, ProductDealComparison[]>>({});
+  const [loadingDeals, setLoadingDeals] = useState(false);
 
   useEffect(() => {
     if (listId) {
@@ -15,12 +20,40 @@ export default function ListDetailScreen() {
     }
   }, [listId]);
 
+  // Fetch all deals for products in the list
+  useEffect(() => {
+    const fetchDeals = async () => {
+      if (!currentList?.items) return;
+      setLoadingDeals(true);
+      const newDealsMap: Record<number, ProductDealComparison[]> = {};
+      for (const item of currentList.items) {
+        if (item.product?.product_id) {
+          const deals = await fetchAllDealsForProduct(item.product.product_id);
+          newDealsMap[item.product.product_id] = deals;
+        }
+      }
+      setDealsMap(newDealsMap);
+      setLoadingDeals(false);
+    };
+    fetchDeals();
+  }, [currentList]);
+
   const renderListItem = ({ item }: { item: any }) => {
     const product = item.product;
     if (!product) return null;
 
-    const hasDeal = Boolean(product.deal);
-    const displayPrice = hasDeal ? product.deal.deal_price : 0;
+    // Current deal from saved product (may be expired)
+    const currentDeal = product.deal;
+    const today = new Date();
+    let isExpired = false;
+    if (currentDeal && currentDeal.end_date) {
+      isExpired = new Date(currentDeal.end_date) < today;
+    }
+
+    // Latest deals from all supermarkets
+    const allDeals = dealsMap[product.product_id] || [];
+    // Find the best (cheapest) deal
+    const bestDeal = allDeals.length > 0 ? allDeals[0] : null;
 
     return (
       <View style={styles.listItem}>
@@ -49,10 +82,33 @@ export default function ListDetailScreen() {
           {product.brand && (
             <Text style={styles.itemBrand}>{product.brand}</Text>
           )}
-          {hasDeal && (
+          {/* Show current deal info */}
+          {currentDeal && (
             <View style={styles.priceContainer}>
-              <Text style={styles.itemPrice}>${displayPrice.toFixed(2)}</Text>
-              <Text style={styles.itemDiscount}>-{product.deal.discount}%</Text>
+              <Text style={styles.itemPrice}>${currentDeal.deal_price.toFixed(2)}</Text>
+              <Text style={styles.itemDiscount}>-{currentDeal.discount}%</Text>
+              {isExpired && (
+                <Text style={{ color: '#ff3366', marginLeft: 8, fontWeight: 'bold' }}>(Ended)</Text>
+              )}
+            </View>
+          )}
+          {/* Show best/latest deal if different from current */}
+          {bestDeal && (!currentDeal || bestDeal.deal_id !== currentDeal.deal_id) && (
+            <View style={styles.priceContainer}>
+              <Text style={[styles.itemPrice, { color: '#10b981' }]}>${bestDeal.deal_price.toFixed(2)}</Text>
+              <Text style={styles.itemDiscount}>-{bestDeal.discount}%</Text>
+              <Text style={{ color: '#10b981', marginLeft: 8 }}>New deal available!</Text>
+            </View>
+          )}
+          {/* Show other supermarket deals */}
+          {allDeals.length > 1 && (
+            <View style={{ marginTop: 4 }}>
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>Other supermarkets:</Text>
+              {allDeals.slice(1).map((deal) => (
+                <Text key={deal.deal_id} style={{ fontSize: 12, color: '#6b7280' }}>
+                  {deal.retailers?.name || 'Supermarket'}: ${deal.deal_price.toFixed(2)} ({deal.discount}% off)
+                </Text>
+              ))}
             </View>
           )}
           {item.quantity > 1 && (
